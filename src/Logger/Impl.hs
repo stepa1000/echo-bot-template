@@ -8,7 +8,7 @@ module Logger.Impl
 where
 
 import qualified Data.Text as T
--- import qualified Data.Text.IO as T
+import qualified Data.Text.IO as T
 import qualified Logger
 import qualified System.IO
 
@@ -28,6 +28,6 @@ withHandle config f = f Logger.Handle {Logger.hLowLevelLog = logWith config}
 
 logWith :: Config -> Logger.Level -> T.Text -> IO ()
 logWith conf logLvl t | logLvl >= (confMinLevel conf) = do
-  T.hPutStrLn (confFileHandle conf) $ (T.pack $ show logLvl ++ ": " ) `append` t
+  T.hPutStrLn (confFileHandle conf) $ (T.pack $ show logLvl ++ ": " ) `T.append` t
 logWith _ _ _ = return ()
-	
+

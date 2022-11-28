@@ -67,7 +67,7 @@ data Config = Config
     -- | The initial repetition count for echoing messages to start
     -- with.
     confRepetitionCount :: Int
-  }
+  } deriving Show
 
 -- | An external event that the bot should process and respond to.
 -- It's parameterized with a message type.
@@ -164,7 +164,7 @@ handleRepeatCommand h = do
   let count = stRepetitionCount st
   let mMessageT = stRepetitionMessageText st
   let conf = (hConfig h)
-  case mMessageT of
+  case mMessageT of -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     (Just messageT) -> return $ take count $ repeat (MessageResponse $ hMessageFromText h messageT) 
     Nothing -> return $ take count $ repeat (MessageResponse $ hMessageFromText h $ confRepeatReply conf )
 --error "Not implemented"
