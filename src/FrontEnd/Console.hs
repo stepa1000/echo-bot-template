@@ -38,16 +38,6 @@ runLoop h t = do
 
 runLoop' :: Handle -> T.Text -> IO Bool
 runLoop' _ t | t == "/exit" = return False
-{-runLoop' h t | (T.take 9 t) == "/repeat" = do
-  let en = T.decimal $ T.drop 10 t
-  case en of
-    (Right (n,_)) -> do
-      lr <- EchoBot.respond h $ EchoBot.SetRepetitionCountEvent n
-      mapM (TIO.putStrLn . printResponse) lr -- !!!!!!!!!!
-      return True
-    (Left _) -> do
-      TIO.putStrLn "Comand setCount is not right"
-      return True-}
 runLoop' h t = do
   lr <- EchoBot.respond (hBotHandle h) $ EchoBot.MessageEvent t
   case lr of
