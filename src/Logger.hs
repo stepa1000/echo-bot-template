@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | The logger interface module. It should not define a specific
 -- implementation.
 module Logger
@@ -8,6 +9,7 @@ module Logger
     logWarning,
     logError,
     (.<),
+    textToLogLvl
   )
 where
 
@@ -25,6 +27,13 @@ data Level
   | Warning
   | Error
   deriving (Show, Eq, Ord)
+
+textToLogLvl :: T.Text -> Level
+textToLogLvl t 
+  | t == "Warning" = Warning
+  | t == "Info" = Info
+  | t == "Debug" = Debug
+  | True = Error 
 
 logDebug, logInfo, logWarning, logError :: Handle m -> T.Text -> m ()
 logDebug h = hLowLevelLog h Debug

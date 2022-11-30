@@ -3,7 +3,7 @@ module Main
   )
 where
 
-import qualified Config
+import qualified ConfigBot
 import qualified ConfigurationTypes
 import Data.IORef (modifyIORef', newIORef, readIORef)
 import qualified Data.Text as T
@@ -16,7 +16,7 @@ import System.Exit (die)
 main :: IO ()
 main = do
   withLogHandle $ \logHandle -> do
-    frontEnd <- Config.getFrontEndType
+    frontEnd <- ConfigBot.getFrontEndType
     case frontEnd of
       ConfigurationTypes.TelegramFrontEnd ->
         error "Not implemented"
@@ -31,7 +31,7 @@ runConsoleFrontEnd botHandle =
 
 withLogHandle :: (Logger.Handle IO -> IO ()) -> IO ()
 withLogHandle f = do
-  config <- Config.getLoggerConfig
+  config <- ConfigBot.getLoggerConfig
   Logger.Impl.withHandle config f
 
 -- | Creates a bot handle. Please note:
@@ -51,7 +51,7 @@ withLogHandle f = do
 --   @hMessageFromText@ and @hTextFromMessage@.
 makeBotHandleForPlainText :: Logger.Handle IO -> IO (EchoBot.Handle IO T.Text)
 makeBotHandleForPlainText logHandle = do
-  botConfig <- Config.getBotConfig
+  botConfig <- ConfigBot.getBotConfig
   initialState <- either (die . T.unpack) pure $ EchoBot.makeState botConfig
   stateRef <- newIORef initialState
   pure
