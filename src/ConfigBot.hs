@@ -47,7 +47,7 @@ getBotConfig = do
 
 getLoggerConfig :: IO Logger.Impl.Config
 getLoggerConfig = do -- error "Not implemented"
-  t <- T.readFile "config/LoggerImpl.yaml"
+  t <- T.readFile "config/LoggerImp.yaml"
   case parse t of
      (Right v) -> parseValue v
      (Left errorParse) -> error $ show errorParse

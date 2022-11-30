@@ -1,6 +1,7 @@
 .stack-work/
 *~
 /config
+/logs
 .vscode
 .history
 /echo-bot.cabal

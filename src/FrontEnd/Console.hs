@@ -10,7 +10,7 @@ module FrontEnd.Console
 where
 
 import qualified Data.Text as T
--- import qualified Data.Text.Read as T
+import qualified Data.Text.Read as T
 import qualified Data.Text.IO as TIO
 import qualified EchoBot
 
@@ -38,7 +38,7 @@ runLoop h t = do
 
 runLoop' :: Handle -> T.Text -> IO Bool
 runLoop' _ t | t == "/exit" = return False
-{- runLoop h t | (T.take 9 t) == "/setCount" = do
+{-runLoop' h t | (T.take 9 t) == "/repeat" = do
   let en = T.decimal $ T.drop 10 t
   case en of
     (Right (n,_)) -> do
@@ -47,13 +47,29 @@ runLoop' _ t | t == "/exit" = return False
       return True
     (Left _) -> do
       TIO.putStrLn "Comand setCount is not right"
-      return True
--}
+      return True-}
 runLoop' h t = do
   lr <- EchoBot.respond (hBotHandle h) $ EchoBot.MessageEvent t
-  _ <- mapM (TIO.putStrLn . printResponse) lr -- !!!!!!!!!!!
-  return True
+  case lr of
+    ((EchoBot.MenuResponse t2 lm):_) -> do
+        TIO.putStrLn t2
+        _ <- (TIO.putStrLn . printMenu) lm
+        tn <- TIO.getLine
+        let conf = EchoBot.hConfig (hBotHandle h)
+        lr2 <- EchoBot.respond (hBotHandle h) $ 
+          EchoBot.SetRepetitionCountEvent $ 
+          either (const $ EchoBot.confRepetitionCount conf) id $ 
+          fmap fst $
+          T.decimal tn
+        _ <- mapM (TIO.putStrLn . printResponse) lr2 -- !!!!!!!!!!!
+        return True
+    ls -> do
+       _ <- mapM (TIO.putStrLn . printResponse) ls
+       return True
 
 printResponse :: EchoBot.Response T.Text -> T.Text
-printResponse = undefined
+printResponse (EchoBot.MessageResponse t) = t
+printResponse _ = ""
 
+printMenu :: [(EchoBot.RepetitionCount, EchoBot.Event T.Text)] -> T.Text
+printMenu = foldl1 (\t1 t2-> t1 `T.append` "\n" `T.append` t2) . fmap (T.pack . show)
