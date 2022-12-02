@@ -26,6 +26,10 @@ dependencies:
 - hspec
 - aeson
 - config-value
+- vector
+- servant
+- servant-client
+- http-client
 # - config-ini
 
 ghc-options:
