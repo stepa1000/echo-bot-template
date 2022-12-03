@@ -3,6 +3,7 @@ module ConfigBot
   ( getBotConfig,
     getLoggerConfig,
     getFrontEndType,
+    getTelegramConfig
   )
 where
 
@@ -15,6 +16,8 @@ import qualified ConfigurationTypes
 import qualified EchoBot
 import qualified Logger.Impl
 import qualified Logger
+
+import qualified FrontEnd.Telegram.Telegram as Telegram
 
 import Config as C
 
@@ -75,4 +78,15 @@ getFrontEndType = do -- error "Not implemented"
   where
     parseValue (Sections _ ( (Section _ _ (C.Text _ t1) ) : [])) = do
         return $ ConfigurationTypes.textToFrontEndType $ t1
+    parseValue _ = error "parseValue patern matching error"
+
+getTelegramConfig :: IO Telegram.Config
+getTelegramConfig = do -- error "Not implemented"
+  t <- T.readFile "config/Telegram.yaml"
+  case parse t of
+     (Right v) -> parseValue v
+     (Left errorParse) -> error $ show errorParse
+  where
+    parseValue (Sections _ ( (Section _ _ (C.Text _ t1) ) : [])) = do
+        return $ Telegram.Config t1
     parseValue _ = error "parseValue patern matching error"

@@ -6,6 +6,7 @@ module FrontEnd.Telegram.Data.GetUpdate where
 import Data.Aeson
 import Data.Text
 import Data.Vector
+import Data.ByteString.Lazy
 
 data Welcome10 = Welcome10
     { okWelcome10 :: Bool
@@ -45,8 +46,8 @@ data From = From
     , languageCodeFrom :: Text
     } deriving (Show)
 
--- decodeTopLevel :: ByteString -> Maybe Welcome10
--- decodeTopLevel = decode
+decodeTopLevel :: ByteString -> Maybe Welcome10
+decodeTopLevel = decode
 
 instance ToJSON Welcome10 where
     toJSON (Welcome10 okWelcome10' resultWelcome10') =
