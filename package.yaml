@@ -27,11 +27,12 @@ dependencies:
 - aeson
 - config-value
 - vector
-# - servant
-# - servant-client
+- servant
+- servant-client
 - bytestring
 - http-client
 - http-types
+- http-client-tls
 # - config-ini
 
 ghc-options:
