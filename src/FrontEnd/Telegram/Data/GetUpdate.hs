@@ -25,6 +25,7 @@ data Message = Message
     , dateMessage :: Int
     , messageTextMessage :: Text
     , entitiesMessage :: Maybe (Vector Entity)
+    , photoMessage :: Maybe (Vector Photo)
     } deriving (Show)
 
 data Chat = Chat
@@ -44,6 +45,14 @@ data From = From
     , isBotFrom :: Bool
     , firstNameFrom :: Text
     , languageCodeFrom :: Text
+    } deriving (Show)
+
+data Photo = Photo
+    { fileIDPhoto :: Text
+    , fileUniqueIDPhoto :: Text
+    , fileSizePhoto :: Int
+    , widthPhoto :: Int
+    , heightPhoto :: Int
     } deriving (Show)
 
 decodeTopLevel :: ByteString -> Maybe Welcome10
@@ -76,7 +85,7 @@ instance FromJSON ResultElement where
     parseJSON _ = error "parser"
 
 instance ToJSON Message where
-    toJSON (Message messageIDMessage' fromMessage' chatMessage' dateMessage' messageTextMessage' entitiesMessage') =
+    toJSON (Message messageIDMessage' fromMessage' chatMessage' dateMessage' messageTextMessage' entitiesMessage' photoMessage') =
         object
         [ "message_id" .= messageIDMessage'
         , "from" .= fromMessage'
@@ -84,6 +93,7 @@ instance ToJSON Message where
         , "date" .= dateMessage'
         , "text" .= messageTextMessage'
         , "entities" .= entitiesMessage'
+        , "photo" .= photoMessage'
         ]
 
 instance FromJSON Message where
@@ -94,6 +104,7 @@ instance FromJSON Message where
         <*> v .: "date"
         <*> v .: "text"
         <*> v .:? "entities"
+        <*> v .:? "photo"
     parseJSON _ = error "parser"
 
 instance ToJSON Chat where
@@ -143,3 +154,21 @@ instance FromJSON From where
         <*> v .: "language_code"
     parseJSON _ = error "parser"
 
+instance ToJSON Photo where
+    toJSON (Photo fileIDPhoto' fileUniqueIDPhoto' fileSizePhoto' widthPhoto' heightPhoto') =
+        object
+        [ "file_id" .= fileIDPhoto'
+        , "file_unique_id" .= fileUniqueIDPhoto'
+        , "file_size" .= fileSizePhoto'
+        , "width" .= widthPhoto'
+        , "height" .= heightPhoto'
+        ]
+
+instance FromJSON Photo where
+    parseJSON (Object v) = Photo
+        <$> v .: "file_id"
+        <*> v .: "file_unique_id"
+        <*> v .: "file_size"
+        <*> v .: "width"
+        <*> v .: "height"
+    parseJSON _ = error "parser"

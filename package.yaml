@@ -33,6 +33,7 @@ dependencies:
 - http-client
 - http-types
 - http-client-tls
+- containers
 # - config-ini
 
 ghc-options:
