@@ -17,6 +17,8 @@ import Data.Vector as V
 import Data.Map as M
 import Data.Set as S 
 
+import Data.Semigroup
+
 import qualified Data.Text as T
 --import qualified Data.Text.Read as T
 --import qualified Data.Text.IO as TIO
@@ -30,7 +32,7 @@ import qualified EchoBot
 
 data Handle = Hendle
   { configTelegramBot :: Config
-  , dateLastUpdate :: IORef Int
+  , lastUpdate :: IORef (Maybe Int)
   , handleEchoBot :: EchoBot.Handle (SL.StateT Accounting ClientM) AccountMessage
   }
 
@@ -74,9 +76,48 @@ data Config = Config
 
 run :: Handle -> SL.StateT Accounting ClientM () -- IO ()
 run h = do
-  (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates (Just 1)
+  mlastUp <- liftBase $ readIORef (lastUpdate h)
+  vUp <- hGetUpdates h
   let mapNAccount = vResultTovAccountEvent vUp
+  mapNA2 <- M.mapMWithKey updateAccount mapNAccount
   return ()
+
+hGetUpdates :: Handle -> SL.StateT Accounting ClientM (Vector GU.ResultElement)
+hGetUpdates h = do
+  mlastUp <- liftBase $ readIORef (lastUpdate h)
+  case mlastUp of
+    (Just lUp) -> do
+      (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates (Just lUp)
+      liftBase $ writeIORef (lastUpdate h) (Just $ getNewLastUpdate vUp)
+      return $ filterUpdate lUp vUp
+    _ -> do
+      (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates Nothing
+      liftBase $ writeIORef (lastUpdate h) (Just $ getNewLastUpdate vUp)
+      return $ vUp
+    
+getNewLastUpdate :: Vector GU.ResultElement -> Int
+getNewLastUpdate = getMax . P.foldMap (Max . GU.updateIDResultElement)
+
+filterUpdate :: Int -> Vector GU.ResultElement -> Vector GU.ResultElement
+filterUpdate lastUp = V.filter (\re-> lastUp < (GU.dateMessage $ GU.messageResultElement re) )
+
+updateAccount :: Name -> AccountEvent -> StateT Accounting ClientM ()
+updateAccount n (AccountEvent chatID vMessage) = do
+  switchAccount n chatID 
+  updateAccountMessage (V.toList vMessage)
+  error "Not implement"
+
+switchAccount :: Name -> Int -> StateT Accounting ClientM ()
+switchAccount n chatId = do
+  s <- SL.get
+  case (mapState s) M.!? n of
+    (Just accSt) -> do
+       modify (\s2->s2 {mapState = f (mapState s) (currentAccountId s) (currentState s) } )
+  where
+    f mapSt currentAccId currentSt = M.insert 
+      (accountIdFitstNameUser currentAccId) 
+      (AccountState currentAccId currentSt)
+      mapSt
 
 vResultTovAccountEvent :: Vector GU.ResultElement -> Map Name AccountEvent -- AccountMessage 
 vResultTovAccountEvent = P.foldl f M.empty
