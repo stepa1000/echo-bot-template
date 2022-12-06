@@ -1,5 +1,7 @@
 {-# Language TypeOperators ,
-DataKinds 
+DataKinds ,
+FlexibleInstances,
+OverloadedStrings
 #-}
 
 module FrontEnd.Telegram.API where
@@ -13,19 +15,39 @@ import Data.Proxy
 
 import FrontEnd.Telegram.Data.GetUpdate as GU
 import FrontEnd.Telegram.Data.SendMessage as SM
+import FrontEnd.Telegram.Data.PollMessage as PM
+import FrontEnd.Telegram.Data.SendPhoto as SP
 
-type TelegramAPI = "getUpdates" :> QueryParam "offset" Int :> Get '[JSON] Welcome10
+newtype ListText = ListText {unListText :: [T.Text]}
+
+instance ToHttpApiData ListText where
+  toUrlPiece (ListText l) = "[" `T.append` ( f l `T.append` "]")
+    where
+      f (x:[]) = x
+      f (x:xs) = x `T.append` ("," `T.append` (f xs) )
+      f _ = ""
+
+type TelegramAPI = "getUpdates" :> QueryParam "offset" Int :> Get '[JSON] GU.Welcome10
               :<|> "sendMessage" :> QueryParam "chat_id" Int 
                                  :> QueryParam "text" T.Text 
                                  -- :> QueryParam' '[Optional,Strict,JSON] "" (Vector GU.Entity)
-                                 :> Get '[JSON] Welcome2
+                                 :> Get '[JSON] SM.Welcome2
+              :<|> "sendPhoto" :> QueryParam "chat_id" Int
+                               :> QueryParam "photo" T.Text
+                               :> Get '[JSON] SP.Welcome 
+              :<|> "sendPoll" :> QueryParam "chat_id" Int
+                              :> QueryParam "question" T.Text
+                              :> QueryParam "options" ListText
+                              :> Get '[JSON] PM.Welcome9
 {- (QueryParam "chat_id" Int 
                                  :<|> QueryParam "chat_id" String )
 -}
 telegramAPI :: Proxy TelegramAPI
 telegramAPI = Proxy
 
-getUpdates :: Maybe Int -> ClientM Welcome10
-sendMessage :: Maybe Int -> Maybe T.Text -> ClientM Welcome2
+getUpdates :: Maybe Int -> ClientM GU.Welcome10
+sendMessage :: Maybe Int -> Maybe T.Text -> ClientM SM.Welcome2
+sendPhoto :: Maybe Int -> Maybe T.Text -> ClientM SP.Welcome
+sendPoll :: Maybe Int -> Maybe T.Text -> Maybe ListText -> ClientM PM.Welcome9
 
-getUpdates :<|> sendMessage = client telegramAPI
+getUpdates :<|> sendMessage :<|> sendPhoto :<|> sendPoll = client telegramAPI

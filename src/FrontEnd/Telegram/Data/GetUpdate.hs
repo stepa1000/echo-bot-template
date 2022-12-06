@@ -15,7 +15,8 @@ data Welcome10 = Welcome10
 
 data ResultElement = ResultElement
     { updateIDResultElement :: Int
-    , messageResultElement :: Message
+    , messageResultElement :: Maybe Message
+    , pollResultElement :: Maybe Poll
     } deriving (Show)
 
 data Message = Message
@@ -55,6 +56,22 @@ data Photo = Photo
     , heightPhoto :: Int
     } deriving (Show)
 
+data Poll = Poll
+    { pollIDPoll :: Text
+    , questionPoll :: Text
+    , optionsPoll :: Vector Option
+    , totalVoterCountPoll :: Int
+    , isClosedPoll :: Bool
+    , isAnonymousPoll :: Bool
+    , pollTypePoll :: Text
+    , allowsMultipleAnswersPoll :: Bool
+    } deriving (Show)
+
+data Option = Option
+    { optionTextOption :: Text
+    , voterCountOption :: Int
+    } deriving (Show)
+
 decodeTopLevel :: ByteString -> Maybe Welcome10
 decodeTopLevel = decode
 
@@ -72,16 +89,18 @@ instance FromJSON Welcome10 where
     parseJSON _ = error "parser"
 
 instance ToJSON ResultElement where
-    toJSON (ResultElement updateIDResultElement' messageResultElement') =
+    toJSON (ResultElement updateIDResultElement' messageResultElement' pollResultElement') =
         object
         [ "update_id" .= updateIDResultElement'
         , "message" .= messageResultElement'
+        , "poll" .= pollResultElement'
         ]
 
 instance FromJSON ResultElement where
     parseJSON (Object v) = ResultElement
         <$> v .: "update_id"
-        <*> v .: "message"
+        <*> v .:? "message"
+        <*> v .:? "poll"
     parseJSON _ = error "parser"
 
 instance ToJSON Message where
@@ -171,4 +190,44 @@ instance FromJSON Photo where
         <*> v .: "file_size"
         <*> v .: "width"
         <*> v .: "height"
+    parseJSON _ = error "parser"
+    
+
+instance ToJSON Poll where
+    toJSON (Poll pollIDPoll' questionPoll' optionsPoll' totalVoterCountPoll' isClosedPoll' isAnonymousPoll' pollTypePoll' allowsMultipleAnswersPoll') =
+        object
+        [ "id" .= pollIDPoll'
+        , "question" .= questionPoll'
+        , "options" .= optionsPoll'
+        , "total_voter_count" .= totalVoterCountPoll'
+        , "is_closed" .= isClosedPoll'
+        , "is_anonymous" .= isAnonymousPoll'
+        , "type" .= pollTypePoll'
+        , "allows_multiple_answers" .= allowsMultipleAnswersPoll'
+        ]
+
+instance FromJSON Poll where
+    parseJSON (Object v) = Poll
+        <$> v .: "id"
+        <*> v .: "question"
+        <*> v .: "options"
+        <*> v .: "total_voter_count"
+        <*> v .: "is_closed"
+        <*> v .: "is_anonymous"
+        <*> v .: "type"
+        <*> v .: "allows_multiple_answers"
+    parseJSON _ = error "parser"
+
+
+instance ToJSON Option where
+    toJSON (Option optionTextOption' voterCountOption') =
+        object
+        [ "text" .= optionTextOption'
+        , "voter_count" .= voterCountOption'
+        ]
+
+instance FromJSON Option where
+    parseJSON (Object v) = Option
+        <$> v .: "text"
+        <*> v .: "voter_count"
     parseJSON _ = error "parser"

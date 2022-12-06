@@ -8,11 +8,11 @@ module EchoBot
     respond,
     Event (MessageEvent, SetRepetitionCountEvent),
     Response (..),
-    State,
+    State (..), -- ????
     Handle (..),
     Config (..),
     RepetitionCount,
-    hasVariableText -- ???!!! delate the
+    hasVariableText, -- ???!!! delate the
   )
 where
 
