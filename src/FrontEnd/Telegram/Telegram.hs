@@ -146,9 +146,10 @@ hGetUpdates h = do
   Logger.logDebug (logHandle h) $ "Current last update " .< mlastUp
   case mlastUp of
     (Just lUp) -> do
-      (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates (Just (lUp - 1) )
+      (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates (Just (lUp + 1) )
       Logger.logDebug (logHandle h) $ "Last result vector length " .< (V.length vUp)
       Logger.logDebug (logHandle h) $ "Filtered result vector length " .< (V.length $ filterUpdate lUp vUp)
+      Logger.logDebug (logHandle h) $ "Vector IDUpdates " .< (fmap GU.updateIDResultElement vUp )
       liftBase $ writeIORef (lastUpdate h) (Just $ max (getNewLastUpdate vUp) lUp )
       return $ filterUpdate lUp vUp
     _ -> do
@@ -163,7 +164,7 @@ getNewLastUpdate = getMax . P.foldMap (Max . GU.updateIDResultElement)
 filterUpdate :: Int -> Vector GU.ResultElement -> Vector GU.ResultElement
 filterUpdate lastUp = V.filter 
   (\re-> 
-    (lastUp <= (GU.updateIDResultElement re)) )
+    (lastUp < (GU.updateIDResultElement re)) )
 
 updateAccount :: Handle -> UserId -> AccountEvent -> SL.StateT Accounting ClientM ()
 updateAccount h n (AccountEvent chatID vMessage) = do
