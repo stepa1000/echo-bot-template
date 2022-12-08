@@ -26,7 +26,7 @@ run h = do
   -- 1. Read a line from the console.
   -- 2. Send it to the bot, get its response and output it.
   -- 3. Go to 1.
-  error "Not implemented"
+  -- error "Not implemented"
 
 runLoop :: Handle -> T.Text -> IO ()
 runLoop h t = do

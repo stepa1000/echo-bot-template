@@ -24,7 +24,7 @@ data Message = Message
     , fromMessage :: From
     , chatMessage :: Chat
     , dateMessage :: Int
-    , messageTextMessage :: Text
+    , messageTextMessage :: Maybe Text
     , entitiesMessage :: Maybe (Vector Entity)
     , photoMessage :: Maybe (Vector Photo)
     } deriving (Show)
@@ -121,7 +121,7 @@ instance FromJSON Message where
         <*> v .: "from"
         <*> v .: "chat"
         <*> v .: "date"
-        <*> v .: "text"
+        <*> v .:? "text"
         <*> v .:? "entities"
         <*> v .:? "photo"
     parseJSON _ = error "parser"

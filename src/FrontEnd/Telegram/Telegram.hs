@@ -23,7 +23,7 @@ import Control.Monad.Base
 import Control.Applicative
 
 import qualified Data.Text as T
---import qualified Data.Text.Read as T
+import qualified Data.Text.Read as T
 --import qualified Data.Text.IO as TIO
 import qualified System.IO as SIO
 
@@ -32,79 +32,128 @@ import qualified Control.Monad.State.Lazy as SL
 import qualified FrontEnd.Telegram.Data.GetUpdate as GU
 import qualified FrontEnd.Telegram.Data.PollMessage as PM
 import qualified FrontEnd.Telegram.API as API
-import qualified EchoBot
 
-data Handle = Hendle
+import qualified EchoBot
+import qualified Logger
+import Logger ((.<))
+
+data Handle = Handle
   { configTelegramBot :: Config
   , lastUpdate :: IORef (Maybe Int)
   , handleEchoBot :: EchoBot.Handle (SL.StateT Accounting ClientM) AccountMessage
   }
 
-type Name = T.Text
-type PollID = T.Text
+logHandle :: Handle -> Logger.Handle (SL.StateT Accounting ClientM)
+logHandle = EchoBot.hLogHandle .  handleEchoBot -- error "Not implement"
+
+type UserId = Int
+type ChatId = Int
+type PollId = T.Text
 
 data Accounting = Accounting
   { currentAccountId :: AccountId
   , currentState :: EchoBot.State
-  , currentPollID :: Maybe PollID
-  , mapState :: Map Name AccountState
+  , currentPollID :: Maybe PollId
+  , mapState :: Map UserId AccountState
   }
 
 data AccountState = AccountState
   { accountId :: AccountId
   , accountState :: EchoBot.State
-  , accountPollId :: Maybe PollID
+  , accountPollId :: Maybe PollId
   }
 
 data AccountId = AccountId 
-  { accountIdFitstNameUser :: Name
-  , accountIdChatId :: Int
+  { accountUserId :: UserId -- accountIdFitstNameUser :: Name
+  , accountIdChatId :: ChatId
   }
 
 data AccountMessage = AccountMessage
   { accountMesageText :: T.Text
-  , accountMesageID :: Int
+  --, accountMesageID :: Int
   , accountEntitiesMessage :: Maybe (Vector GU.Entity )
   }
   | AccountMessagePhoto 
-  { accountMesageID :: Int
-  , accountFileIDPhoto :: Set T.Text
+  { -- accountMesageID :: Int
+  accountFileIDPhoto :: Set T.Text
   }
 
+accountMessageToText :: AccountMessage -> Maybe T.Text
+accountMessageToText (AccountMessage t _) = Just t
+accountMessageToText _ = Nothing
+
+textToAccountMessage :: T.Text -> AccountMessage
+textToAccountMessage t = AccountMessage t Nothing
+
 data AccountEvent = AccountEvent
-  { accountChatId :: Int
+  { accountChatId :: ChatId
   -- , accountFirstName :: Name
   , accountMessages :: Vector AccountMessage
   }
 
 data AccountPoll = AccountPoll
-  { accountIdPoll :: T.Text
+  { accountUpdateIDPoll :: Int
+  , accountIdPoll :: T.Text
   , accTotalVoterPoll :: Int
   , accOptionsPoll :: Vector GU.Option
   }
 
 data Config = Config
   { confBotToken :: T.Text -- confManager :: 
+  , confFirstNameBot :: T.Text
   } deriving Show
 
-run :: Handle -> SL.StateT Accounting ClientM () -- IO ()
+withHandle :: Config 
+           -> EchoBot.Handle (SL.StateT Accounting ClientM) AccountMessage
+           -> (Handle -> SL.StateT Accounting ClientM a) 
+           -> SL.StateT Accounting ClientM a
+withHandle conf ebh f = do 
+  lu <- liftBase $ newIORef Nothing
+  f $ Handle 
+    { configTelegramBot = conf
+    , handleEchoBot = ebh
+    , lastUpdate = lu
+    }
+
+run :: Handle -> SL.StateT Accounting ClientM ()
 run h = do
+  _ <- hGetUpdates h
+  run' h
+
+run' :: Handle -> SL.StateT Accounting ClientM ()
+run' h = do
+  runLoop h
+  run' h
+
+runLoop :: Handle -> SL.StateT Accounting ClientM () -- IO ()
+runLoop h = do
   -- mlastUp <- liftBase $ readIORef (lastUpdate h)
+  Logger.logInfo (logHandle h) "Start main telegram bot loop"
   vUp <- hGetUpdates h
-  let (mapNAccount,mapAccPoll) = vResultTovAccountEvent vUp
-  mapNA2 <- P.sequence $ M.mapWithKey (\n-> (updateAccount h n)) mapNAccount
+  let (mapNAccount,mapAccPoll) = filterResult vUp
+  _ <- P.sequence $ M.mapWithKey (\n-> (updateAccount h n)) mapNAccount
+  refreshAccount h
+  s <- SL.get
+  _ <- P.sequence $ M.mapWithKey (\n-> (updatePoll h n mapAccPoll)) (mapState s)
   return ()
+  where
+    filterResult = vResultTovAccountEvent .
+      filterOnlyUsers (configTelegramBot h)
 
 hGetUpdates :: Handle -> SL.StateT Accounting ClientM (Vector GU.ResultElement)
 hGetUpdates h = do
   mlastUp <- liftBase $ readIORef (lastUpdate h)
+  Logger.logDebug (logHandle h) $ "Current last update " .< mlastUp
   case mlastUp of
     (Just lUp) -> do
-      (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates (Just lUp)
-      liftBase $ writeIORef (lastUpdate h) (Just $ getNewLastUpdate vUp)
+      (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates (Just (lUp - 1) )
+      Logger.logDebug (logHandle h) $ "Last result vector length " .< (V.length vUp)
+      Logger.logDebug (logHandle h) $ "Filtered result vector length " .< (V.length $ filterUpdate lUp vUp)
+      liftBase $ writeIORef (lastUpdate h) (Just $ max (getNewLastUpdate vUp) lUp )
       return $ filterUpdate lUp vUp
     _ -> do
       (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates Nothing
+      Logger.logDebug (logHandle h) $ "Last result vector length " .< (V.length vUp)
       liftBase $ writeIORef (lastUpdate h) (Just $ getNewLastUpdate vUp)
       return $ vUp
     
@@ -114,18 +163,45 @@ getNewLastUpdate = getMax . P.foldMap (Max . GU.updateIDResultElement)
 filterUpdate :: Int -> Vector GU.ResultElement -> Vector GU.ResultElement
 filterUpdate lastUp = V.filter 
   (\re-> 
-    (isJust $ GU.messageResultElement re) && 
-    (lastUp < (GU.dateMessage $ fromJust $ GU.messageResultElement re)) )
+    (lastUp <= (GU.updateIDResultElement re)) )
 
-updateAccount :: Handle -> Name -> AccountEvent -> SL.StateT Accounting ClientM ()
+updateAccount :: Handle -> UserId -> AccountEvent -> SL.StateT Accounting ClientM ()
 updateAccount h n (AccountEvent chatID vMessage) = do
+  Logger.logDebug (logHandle h) $ "Current UserId " .< n
   switchAccount h n chatID 
-  P.mapM (updateAccountMessage h n chatID) (V.toList vMessage)
-  error "Not implement"
+  _ <- P.mapM (updateAccountMessage h chatID) (V.toList vMessage)
+  return ()
+-- error "Not implement"
 -- updateAccount h n (AccountPoll chatID accTVotes vOption) = do
 --  switchAccount h n chatID 
 
-switchAccount :: Handle -> Name -> Int -> SL.StateT Accounting ClientM ()
+updatePoll :: Handle -> UserId -> Map PollId AccountPoll -> AccountState -> SL.StateT Accounting ClientM ()
+updatePoll h n mapNAP ast = do
+  case ((accountPollId ast) >>= (\i-> mapNAP M.!? i) ) of
+    (Just p) -> if (accTotalVoterPoll p) > 0
+      then do
+        let mO = P.foldl1 maxOption (accOptionsPoll p)
+        switchAccount h n (accountIdChatId $ accountId ast)
+        r <- EchoBot.respond 
+          (handleEchoBot h) 
+          (EchoBot.SetRepetitionCountEvent $ 
+            either (const (EchoBot.stRepetitionCount $ accountState ast) ) fst $ 
+            T.decimal $ GU.optionTextOption mO)
+        P.mapM_ (sendAccMessage (accountIdChatId $ accountId ast)) r
+        return ()
+      else return ()
+    _ -> return ()
+  where
+    maxOption o1 o2 
+      | (GU.voterCountOption o1) >= (GU.voterCountOption o2) = o1
+      | True = o2
+
+refreshAccount :: Handle -> SL.StateT Accounting ClientM ()
+refreshAccount h = do
+  s <- SL.get
+  switchAccount h (accountUserId $ currentAccountId s) (accountIdChatId $ currentAccountId s)
+
+switchAccount :: Handle -> UserId -> Int -> SL.StateT Accounting ClientM ()
 switchAccount h n chatId = do
   s <- SL.get
   case ((mapState s) M.!? n) of
@@ -144,65 +220,81 @@ switchAccount h n chatId = do
          } )
   where
     f mapSt currentAccId currentSt currentPollID' = M.insert 
-      (accountIdFitstNameUser currentAccId) 
+      (accountUserId currentAccId) 
       (AccountState currentAccId currentSt currentPollID')
       mapSt
 
-updateAccountMessage :: Handle -> Name -> Int -> AccountMessage -> SL.StateT Accounting ClientM ()
-updateAccountMessage h n chatId x = do -- error "Not implement"
+updateAccountMessage :: Handle -> Int -> AccountMessage -> SL.StateT Accounting ClientM ()
+updateAccountMessage h chatId x = do -- error "Not implement"
   lr <- EchoBot.respond (handleEchoBot h) (EchoBot.MessageEvent x)
   case lr of
     ((EchoBot.MenuResponse t lre):_ ) -> do
       (PM.Welcome9 _ r) <- SL.lift $ API.sendPoll
         (Just chatId) (Just t) (Just $ printToListText lre)
       SL.modify (\s->s{currentPollID = Just $ PM.pollIDPoll $ PM.pollResultClass $ r } )
-    ys -> P.mapM_ sendAccMessage ys
+    ys -> P.mapM_ (sendAccMessage chatId) ys
   where
-    sendAccMessage :: EchoBot.Response AccountMessage -> SL.StateT Accounting ClientM ()
-    sendAccMessage (EchoBot.MessageResponse (AccountMessage t idm me ) ) = do
-      SL.lift $ API.sendMessage (Just chatId) (Just t)
-      return ()
-    sendAccMessage (EchoBot.MessageResponse (AccountMessagePhoto dm sphid ) ) = do
-      SL.lift $ P.mapM (API.sendPhoto (Just chatId) . Just) (S.toList sphid)
-      return ()
     printToListText :: [(EchoBot.RepetitionCount, EchoBot.Event a)] -> API.ListText
-    printToListText ((x,_):xs) = API.ListText $ (\lt-> (T.pack $ show x) :lt) $ API.unListText $ printToListText xs
+    printToListText [] = API.ListText []
+    printToListText ((y,_):ys) = API.ListText $ (\lt-> (T.pack $ show y) :lt) $ API.unListText $ printToListText ys
 
-vResultTovAccountEvent :: Vector GU.ResultElement -> (Map Name AccountEvent, Map Name [AccountPoll]) -- Maybe (Map Name [AccountEvent]) -- AccountMessage 
+sendAccMessage :: Int ->  EchoBot.Response AccountMessage -> SL.StateT Accounting ClientM ()
+sendAccMessage chatId (EchoBot.MessageResponse (AccountMessage t _ ) ) = do
+  _ <- SL.lift $ API.sendMessage (Just chatId) (Just t)
+  return ()
+sendAccMessage chatId (EchoBot.MessageResponse (AccountMessagePhoto sphid ) ) = do
+  _ <- SL.lift $ P.mapM (API.sendPhoto (Just chatId) . Just) (S.toList sphid)
+  return ()
+sendAccMessage _ _ = return ()
+
+filterOnlyUsers :: Config -> Vector GU.ResultElement -> Vector GU.ResultElement
+filterOnlyUsers conf = V.filter f
+  where
+    f r = maybe False id $ do
+      mre <- GU.messageResultElement r
+      return $ (confFirstNameBot conf) /= (GU.firstNameFrom $ GU.fromMessage mre)
+
+vResultTovAccountEvent :: Vector GU.ResultElement -> (Map UserId AccountEvent, Map PollId AccountPoll) -- Maybe (Map Name [AccountEvent]) -- AccountMessage 
 vResultTovAccountEvent = P.foldl f (M.empty,M.empty)
   where
     f (ma,mapoll) mre = fromJust $ (do
       re <- GU.messageResultElement mre 
+      accMessage <- readAccountMessage re
       return (M.insertWith g
-        (GU.firstNameFrom $ GU.fromMessage re) 
+        (GU.fromIDFrom $ GU.fromMessage re) 
         (AccountEvent 
           { accountChatId = GU.chatIDChat $ GU.chatMessage re
-          , accountMessages = V.singleton $ readAccountMessage re
+          , accountMessages = V.singleton $ accMessage
           }
         ) ma, mapoll) 
       ) <|> ( do
       re <- GU.pollResultElement  mre
-      return (ma , M.insertWith (P.++)
+      return (ma , M.insertWith accomulatePoll
         (GU.pollIDPoll re) 
-        [( AccountPoll 
-          { accountIdPoll = GU.pollIDPoll re
+        ( AccountPoll 
+          { accountUpdateIDPoll = GU.updateIDResultElement mre
+          , accountIdPoll = GU.pollIDPoll re
           , accTotalVoterPoll = GU.totalVoterCountPoll re
           , accOptionsPoll = GU.optionsPoll re
           }
-        )] mapoll)
-      )
+        ) mapoll)
+      ) <|> (return (ma,mapoll))
     readAccountMessage 
-      (GU.Message mid _ _ _ _ _ (Just vphoto)) = AccountMessagePhoto 
-        { accountMesageID = mid
-        , accountFileIDPhoto = P.foldl (\s ph -> S.insert (GU.fileIDPhoto ph) s) (S.empty) vphoto
+      (GU.Message _ _ _ _ _ _ (Just vphoto)) = Just $ AccountMessagePhoto 
+        { -- accountMesageID = mid
+        accountFileIDPhoto = P.foldl (\s ph -> S.insert (GU.fileIDPhoto ph) s) (S.empty) vphoto
         }
     readAccountMessage 
-      (GU.Message mid _ _ _ mText mve _ ) = AccountMessage
+      (GU.Message _ _ _ _ (Just mText) mve _ ) = Just $ AccountMessage
         { accountMesageText = mText
-        , accountMesageID = mid
+        -- , accountMesageID = mid
         , accountEntitiesMessage = mve
         }
+    readAccountMessage _ = Nothing
     g (AccountEvent _ m1) (AccountEvent chatid m2) = AccountEvent chatid (m1 V.++ m2)
+    accomulatePoll a1@(AccountPoll rid _ _ _) a2@(AccountPoll rid2 _ _ _)
+      | rid > rid2 = a1
+      | True = a2
 
 clientEnvDefault :: Config -> IO ClientEnv
 clientEnvDefault conf = do 

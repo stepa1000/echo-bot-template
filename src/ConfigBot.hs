@@ -61,7 +61,7 @@ getLoggerConfig = do -- error "Not implemented"
         [] )
         )
       ) : [])) = do
-        h <- SIO.openFile (T.unpack t1) SIO.WriteMode
+        h <- SIO.openBinaryFile (T.unpack t1) SIO.WriteMode
         return $ Logger.Impl.Config 
           { Logger.Impl.confFileHandle = h
           , Logger.Impl.confMinLevel = Logger.textToLogLvl t2
@@ -87,6 +87,9 @@ getTelegramConfig = do -- error "Not implemented"
      (Right v) -> parseValue v
      (Left errorParse) -> error $ show errorParse
   where
-    parseValue (Sections _ ( (Section _ _ (C.Text _ t1) ) : [])) = do
-        return $ Telegram.Config t1
+    parseValue (Sections _ ( 
+          (Section _ _ (C.Text _ t1) ) : 
+          (Section _ _ (C.Text _ t2) ) :
+          [])) = do
+        return $ Telegram.Config t1 t2
     parseValue _ = error "parseValue patern matching error"

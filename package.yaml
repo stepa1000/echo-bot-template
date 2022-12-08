@@ -35,6 +35,7 @@ dependencies:
 - http-client-tls
 - containers
 - transformers-base
+- pretty-show
 # - config-ini
 
 ghc-options:
