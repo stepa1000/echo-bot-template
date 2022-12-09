@@ -23,8 +23,8 @@ newtype ListText = ListText {unListText :: [T.Text]}
 instance ToHttpApiData ListText where
   toUrlPiece (ListText l) = "[" `T.append` ( f l `T.append` "]")
     where
-      f (x:[]) = x
-      f (x:xs) = x `T.append` ("," `T.append` (f xs) )
+      f (x:[]) = "\"" `T.append` (x `T.append` "\"" )
+      f (x:xs) = "\"" `T.append` x `T.append` "\""  `T.append` ("," `T.append` (f xs) )
       f _ = ""
 
 type TelegramAPI = "getUpdates" :> QueryParam "offset" Int :> Get '[JSON] GU.Welcome10

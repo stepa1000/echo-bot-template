@@ -60,8 +60,8 @@ execStateAccounting (SL.StateT st) = do
   e <- Telegram.clientEnvDefault telegramConfig
   a <- runClientM (st $ Telegram.Accounting
     { Telegram.currentAccountId = Telegram.AccountId 
-      { Telegram.accountUserId  = 5950752982
-      , Telegram.accountIdChatId = 889933266
+      { Telegram.accountUserId  = 0 -- 5950752982
+      , Telegram.accountIdChatId = 0 -- 889933266
       }
     , Telegram.currentState = initialState
     , Telegram.currentPollID = Nothing
@@ -74,6 +74,12 @@ execStateAccounting (SL.StateT st) = do
       encodeFile "./logs/responseBody.json" js
       error $ (show t) P.++ "\n" P.++
               (ppShow b) P.++ "\n" P.++ 
+              (ppShow $ js)
+    (Left (FailureResponse req res)) -> do
+      let js = decode @Aeson.Value $ responseBody res
+      encodeFile "./logs/responseBody.json" js
+      error $ (show req) P.++ "\n" P.++
+              (ppShow res) P.++ "\n" P.++ 
               (ppShow $ js)
     (Left b) -> error (ppShow b)
 

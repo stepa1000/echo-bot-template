@@ -66,7 +66,7 @@ data AccountState = AccountState
 data AccountId = AccountId 
   { accountUserId :: UserId -- accountIdFitstNameUser :: Name
   , accountIdChatId :: ChatId
-  }
+  } deriving Eq
 
 data AccountMessage = AccountMessage
   { accountMesageText :: T.Text
@@ -96,7 +96,7 @@ data AccountPoll = AccountPoll
   , accountIdPoll :: T.Text
   , accTotalVoterPoll :: Int
   , accOptionsPoll :: Vector GU.Option
-  }
+  } deriving Show
 
 data Config = Config
   { confBotToken :: T.Text -- confManager :: 
@@ -132,13 +132,13 @@ runLoop h = do
   vUp <- hGetUpdates h
   let (mapNAccount,mapAccPoll) = filterResult vUp
   _ <- P.sequence $ M.mapWithKey (\n-> (updateAccount h n)) mapNAccount
-  refreshAccount h
+  -- refreshAccount h
   s <- SL.get
   _ <- P.sequence $ M.mapWithKey (\n-> (updatePoll h n mapAccPoll)) (mapState s)
   return ()
   where
-    filterResult = vResultTovAccountEvent .
-      filterOnlyUsers (configTelegramBot h)
+    filterResult = vResultTovAccountEvent -- .
+      -- filterOnlyUsers (configTelegramBot h)
 
 hGetUpdates :: Handle -> SL.StateT Accounting ClientM (Vector GU.ResultElement)
 hGetUpdates h = do
@@ -170,7 +170,10 @@ updateAccount :: Handle -> UserId -> AccountEvent -> SL.StateT Accounting Client
 updateAccount h n (AccountEvent chatID vMessage) = do
   Logger.logDebug (logHandle h) $ "Current UserId " .< n
   switchAccount h n chatID 
+  s1 <- SL.get
+  Logger.logDebug (logHandle h) $ "Repetition count" .< (currentState s1)
   _ <- P.mapM (updateAccountMessage h chatID) (V.toList vMessage)
+  refreshAccount h
   return ()
 -- error "Not implement"
 -- updateAccount h n (AccountPoll chatID accTVotes vOption) = do
@@ -178,17 +181,26 @@ updateAccount h n (AccountEvent chatID vMessage) = do
 
 updatePoll :: Handle -> UserId -> Map PollId AccountPoll -> AccountState -> SL.StateT Accounting ClientM ()
 updatePoll h n mapNAP ast = do
+  Logger.logDebug (logHandle h) $ "Update account poll " 
+  Logger.logDebug (logHandle h) $ "Poll account " .< (accountPollId ast)
+  Logger.logDebug (logHandle h) $ "Map polls" .< mapNAP
   case ((accountPollId ast) >>= (\i-> mapNAP M.!? i) ) of
     (Just p) -> if (accTotalVoterPoll p) > 0
       then do
         let mO = P.foldl1 maxOption (accOptionsPoll p)
+        Logger.logDebug (logHandle h) $ "Current poll maximum for option " .< mO 
         switchAccount h n (accountIdChatId $ accountId ast)
         r <- EchoBot.respond 
           (handleEchoBot h) 
           (EchoBot.SetRepetitionCountEvent $ 
             either (const (EchoBot.stRepetitionCount $ accountState ast) ) fst $ 
             T.decimal $ GU.optionTextOption mO)
-        P.mapM_ (sendAccMessage (accountIdChatId $ accountId ast)) r
+        P.mapM_ (sendAccMessage h (accountIdChatId $ accountId ast)) r
+        SL.modify (\s->s{currentPollID = Nothing})
+        s <- SL.get
+        Logger.logDebug (logHandle h) $ "Repetition count modify" .< (currentState s)
+        refreshAccount h
+        Logger.logDebug (logHandle h) $ "Repetition count modify post \"refrashAccount\" " .< (currentState s)
         return ()
       else return ()
     _ -> return ()
@@ -205,6 +217,7 @@ refreshAccount h = do
 switchAccount :: Handle -> UserId -> Int -> SL.StateT Accounting ClientM ()
 switchAccount h n chatId = do
   s <- SL.get
+  -- if ((currentAccountId s) /= (AccountId n chatId) )
   case ((mapState s) M.!? n) of
     (Just accSt) -> do
        SL.modify (\s2->s2 {mapState = f (mapState s) (currentAccountId s) (currentState s) (currentPollID s) } )
@@ -219,6 +232,7 @@ switchAccount h n chatId = do
          { currentAccountId = AccountId n chatId
          , currentState = EchoBot.State $ EchoBot.confRepetitionCount conf
          } )
+    -- else return ()
   where
     f mapSt currentAccId currentSt currentPollID' = M.insert 
       (accountUserId currentAccId) 
@@ -228,25 +242,38 @@ switchAccount h n chatId = do
 updateAccountMessage :: Handle -> Int -> AccountMessage -> SL.StateT Accounting ClientM ()
 updateAccountMessage h chatId x = do -- error "Not implement"
   lr <- EchoBot.respond (handleEchoBot h) (EchoBot.MessageEvent x)
+  -- s1 <- SL.get
+  -- Logger.logDebug (logHandle h) $ "Repetition count" .< (currentState s1)
   case lr of
     ((EchoBot.MenuResponse t lre):_ ) -> do
       (PM.Welcome9 _ r) <- SL.lift $ API.sendPoll
         (Just chatId) (Just t) (Just $ printToListText lre)
+      Logger.logDebug (logHandle h) $ "Send Poll "
       SL.modify (\s->s{currentPollID = Just $ PM.pollIDPoll $ PM.pollResultClass $ r } )
-    ys -> P.mapM_ (sendAccMessage chatId) ys
+    ys -> do 
+      Logger.logDebug (logHandle h) $ "Output repeat message " .< (P.length ys)
+      P.mapM_ (sendAccMessage h chatId) ys
   where
     printToListText :: [(EchoBot.RepetitionCount, EchoBot.Event a)] -> API.ListText
     printToListText [] = API.ListText []
     printToListText ((y,_):ys) = API.ListText $ (\lt-> (T.pack $ show y) :lt) $ API.unListText $ printToListText ys
 
-sendAccMessage :: Int ->  EchoBot.Response AccountMessage -> SL.StateT Accounting ClientM ()
-sendAccMessage chatId (EchoBot.MessageResponse (AccountMessage t _ ) ) = do
+sendAccMessage :: Handle -> Int ->  EchoBot.Response AccountMessage -> SL.StateT Accounting ClientM ()
+sendAccMessage _ chatId (EchoBot.MessageResponse (AccountMessage t _ ) ) = do
   _ <- SL.lift $ API.sendMessage (Just chatId) (Just t)
+  -- liftBase $ modifyIORef (lastUpdate h) (fmap ((+) 1) )
   return ()
-sendAccMessage chatId (EchoBot.MessageResponse (AccountMessagePhoto sphid ) ) = do
-  _ <- SL.lift $ P.mapM (API.sendPhoto (Just chatId) . Just) (S.toList sphid)
+sendAccMessage h chatId (EchoBot.MessageResponse (AccountMessagePhoto sphid ) ) = do
+  Logger.logDebug (logHandle h) $ "AccountMessagePhoto to list " .< (P.length (S.elems sphid))
+  _ <- SL.lift $ API.sendPhoto (Just chatId) (Just $ S.findMax sphid) -- P.mapM (P.foldl f [] sphid)
+  -- liftBase $ modifyIORef (lastUpdate h) (fmap ((+) 1) ) 
   return ()
-sendAccMessage _ _ = return ()
+{-  where
+    f [] p = [p]
+    f (x:l) p | x /= p = p:x:l 
+    f l _ = l
+-}
+sendAccMessage _ _ _ = return ()
 
 filterOnlyUsers :: Config -> Vector GU.ResultElement -> Vector GU.ResultElement
 filterOnlyUsers conf = V.filter f
