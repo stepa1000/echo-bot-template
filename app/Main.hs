@@ -11,7 +11,8 @@ import Servant.Client
 
 import qualified Data.Map as M
 
-import qualified Control.Monad.State.Lazy as SL
+--import qualified Control.Monad.State.Lazy as SL
+import Control.Monad.Base
 
 import qualified ConfigBot
 import qualified ConfigurationTypes
@@ -33,11 +34,12 @@ main = do
     frontEnd <- ConfigBot.getFrontEndType
     case frontEnd of
       ConfigurationTypes.TelegramFrontEnd -> do
-        botHandle <- makeBotHandleForTelegram $ 
+        --botHandle <- makeBotHandleForTelegram $ 
+        --  Logger.Impl.liftHandleBaseIO logHandle 
+        --telegramConfig <- ConfigBot.getTelegramConfig
+        telegramHandle <- makeBotHandleForTelegram $
           Logger.Impl.liftHandleBaseIO logHandle 
-        telegramConfig <- ConfigBot.getTelegramConfig
-        execStateAccounting $ Telegram.withHandle telegramConfig botHandle $ \ telegramHandle ->
-          Telegram.run telegramHandle
+        execClientM $ Telegram.run telegramHandle
       ConfigurationTypes.ConsoleFrontEnd -> do
         botHandle <- makeBotHandleForPlainText logHandle
         runConsoleFrontEnd botHandle
@@ -52,23 +54,13 @@ withLogHandle f = do
   config <- ConfigBot.getLoggerConfig
   Logger.Impl.withHandle config f
 
-execStateAccounting :: SL.StateT Telegram.Accounting ClientM a -> IO a
-execStateAccounting (SL.StateT st) = do
-  botConfig <- ConfigBot.getBotConfig
-  initialState <- either (die . T.unpack) pure $ EchoBot.makeState botConfig
+execClientM :: ClientM a -> IO a
+execClientM m = do
   telegramConfig <- ConfigBot.getTelegramConfig
   e <- Telegram.clientEnvDefault telegramConfig
-  a <- runClientM (st $ Telegram.Accounting
-    { Telegram.currentAccountId = Telegram.AccountId 
-      { Telegram.accountUserId  = 0 -- 5950752982
-      , Telegram.accountIdChatId = 0 -- 889933266
-      }
-    , Telegram.currentState = initialState
-    , Telegram.currentPollID = Nothing
-    , Telegram.mapState = M.empty
-    }) e
+  a <- runClientM m e
   case a of
-    (Right (b,_) ) -> return b
+    (Right b) -> return b
     (Left (DecodeFailure t b )) -> do
       let js = decode @Aeson.Value $ responseBody b
       encodeFile "./logs/responseBody.json" js
@@ -83,23 +75,34 @@ execStateAccounting (SL.StateT st) = do
               (ppShow $ js)
     (Left b) -> error (ppShow b)
 
-makeBotHandleForTelegram :: Logger.Handle (SL.StateT Telegram.Accounting ClientM) 
-                         -> IO (EchoBot.Handle 
-                           (SL.StateT Telegram.Accounting ClientM) 
-                           Telegram.AccountMessage
-                           )
+makeBotHandleForTelegram :: Logger.Handle ClientM 
+                         -> IO (Telegram.Handle ClientM)
 makeBotHandleForTelegram logHandle = do
   botConfig <- ConfigBot.getBotConfig
-  -- initialState <- either (die . T.unpack) pure $ EchoBot.makeState botConfig
-  return $ EchoBot.Handle
-    { EchoBot.hGetState = fmap (Telegram.currentState) $ SL.get
-    , EchoBot.hModifyState' = \ f -> SL.modify 
-      (\s->s{Telegram.currentState = f $ Telegram.currentState s })
-    , EchoBot.hLogHandle = logHandle
-    , EchoBot.hConfig = botConfig
-    , EchoBot.hTextFromMessage = Telegram.accountMessageToText
-    , EchoBot.hMessageFromText = Telegram.textToAccountMessage
-    }
+  telegramConfig <- ConfigBot.getTelegramConfig
+  initialState <- either (die . T.unpack) pure $ EchoBot.makeState botConfig
+  refAcc <- newIORef $ Telegram.Accounting
+    { Telegram.currentAccountId = Telegram.AccountId 
+      { Telegram.accountUserId  = 0 -- 5950752982
+      , Telegram.accountIdChatId = 0 -- 889933266
+      }
+    , Telegram.currentState = initialState
+    , Telegram.currentPollID = Nothing
+    , Telegram.mapState = M.empty
+    }  
+  Telegram.initHandleClientM 
+    telegramConfig 
+    (EchoBot.Handle
+      { EchoBot.hGetState = liftBase $ fmap Telegram.currentState $ readIORef refAcc
+      , EchoBot.hModifyState' = \ f -> liftBase $ 
+          modifyIORef' refAcc (\s->s {Telegram.currentState = f $ Telegram.currentState s})
+      , EchoBot.hLogHandle = logHandle
+      , EchoBot.hConfig = botConfig
+      , EchoBot.hTextFromMessage = Telegram.accountMessageToText
+      , EchoBot.hMessageFromText = Telegram.textToAccountMessage
+      }
+    )
+    refAcc
 
 -- | Creates a bot handle. Please note:
 --

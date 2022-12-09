@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- | The telegram front-end is responsible for telegram api and
 -- appropriate handling of other high-level bot interactions (menu
@@ -27,7 +28,7 @@ import qualified Data.Text.Read as T
 --import qualified Data.Text.IO as TIO
 import qualified System.IO as SIO
 
-import qualified Control.Monad.State.Lazy as SL
+-- import qualified Control.Monad.State.Lazy as SL
 
 import qualified FrontEnd.Telegram.Data.GetUpdate as GU
 import qualified FrontEnd.Telegram.Data.PollMessage as PM
@@ -37,13 +38,17 @@ import qualified EchoBot
 import qualified Logger
 import Logger ((.<))
 
-data Handle = Handle
-  { configTelegramBot :: Config
-  , lastUpdate :: IORef (Maybe Int)
-  , handleEchoBot :: EchoBot.Handle (SL.StateT Accounting ClientM) AccountMessage
+data Handle m = Handle
+  { hConfigTelegramBot :: Config
+  , hGetLastUpdate :: m (Maybe Int)
+  , hSetLastUpdate :: Maybe Int -> m ()
+  , hGetAccounting :: m Accounting
+  , hModifyAccounting :: (Accounting -> Accounting) -> m ()
+  , hLiftClientM :: forall a. ClientM a -> m a
+  , handleEchoBot :: EchoBot.Handle m AccountMessage
   }
 
-logHandle :: Handle -> Logger.Handle (SL.StateT Accounting ClientM)
+logHandle :: Handle m -> Logger.Handle m
 logHandle = EchoBot.hLogHandle .  handleEchoBot -- error "Not implement"
 
 type UserId = Int
@@ -103,6 +108,24 @@ data Config = Config
   , confFirstNameBot :: T.Text
   } deriving Show
 
+initHandleClientM :: Config 
+           -> EchoBot.Handle ClientM AccountMessage
+           -> IORef Accounting
+           -> IO (Handle ClientM)
+initHandleClientM config ebHandle refAcc = do
+  refLU <- newIORef Nothing
+  -- refAcc <- newIORef acc
+  return $ Handle
+    { hConfigTelegramBot = config
+    , hGetLastUpdate = liftBase $ readIORef refLU
+    , hSetLastUpdate = liftBase . writeIORef refLU
+    , hGetAccounting = liftBase $ readIORef refAcc -- :: m Accounting
+    , hModifyAccounting = liftBase . modifyIORef refAcc -- :: (Accounting -> Accounting) -> m ()
+    , hLiftClientM = id -- :: forall a. ClientM a -> m a
+    , handleEchoBot = ebHandle -- :: EchoBot.Handle m AccountMessage
+    }
+
+{-
 withHandle :: Config 
            -> EchoBot.Handle (SL.StateT Accounting ClientM) AccountMessage
            -> (Handle -> SL.StateT Accounting ClientM a) 
@@ -114,18 +137,18 @@ withHandle conf ebh f = do
     , handleEchoBot = ebh
     , lastUpdate = lu
     }
-
-run :: Handle -> SL.StateT Accounting ClientM ()
+-}
+run :: Monad m => Handle m -> m ()
 run h = do
   _ <- hGetUpdates h
   run' h
 
-run' :: Handle -> SL.StateT Accounting ClientM ()
+run' :: Monad m => Handle m -> m ()
 run' h = do
   runLoop h
   run' h
 
-runLoop :: Handle -> SL.StateT Accounting ClientM () -- IO ()
+runLoop :: Monad m => Handle m -> m () -- IO ()
 runLoop h = do
   -- mlastUp <- liftBase $ readIORef (lastUpdate h)
   Logger.logInfo (logHandle h) "Start main telegram bot loop"
@@ -133,29 +156,29 @@ runLoop h = do
   let (mapNAccount,mapAccPoll) = filterResult vUp
   _ <- P.sequence $ M.mapWithKey (\n-> (updateAccount h n)) mapNAccount
   -- refreshAccount h
-  s <- SL.get
+  s <- hGetAccounting h
   _ <- P.sequence $ M.mapWithKey (\n-> (updatePoll h n mapAccPoll)) (mapState s)
   return ()
   where
     filterResult = vResultTovAccountEvent -- .
       -- filterOnlyUsers (configTelegramBot h)
 
-hGetUpdates :: Handle -> SL.StateT Accounting ClientM (Vector GU.ResultElement)
+hGetUpdates :: Monad m => Handle m -> m (Vector GU.ResultElement)
 hGetUpdates h = do
-  mlastUp <- liftBase $ readIORef (lastUpdate h)
+  mlastUp <- hGetLastUpdate h 
   Logger.logDebug (logHandle h) $ "Current last update " .< mlastUp
   case mlastUp of
     (Just lUp) -> do
-      (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates (Just (lUp + 1) )
+      (GU.Welcome10 _ vUp) <- hLiftClientM h $ API.getUpdates (Just (lUp + 1) )
       Logger.logDebug (logHandle h) $ "Last result vector length " .< (V.length vUp)
       Logger.logDebug (logHandle h) $ "Filtered result vector length " .< (V.length $ filterUpdate lUp vUp)
       Logger.logDebug (logHandle h) $ "Vector IDUpdates " .< (fmap GU.updateIDResultElement vUp )
-      liftBase $ writeIORef (lastUpdate h) (Just $ max (getNewLastUpdate vUp) lUp )
+      hSetLastUpdate h (Just $ max (getNewLastUpdate vUp) lUp )
       return $ filterUpdate lUp vUp
     _ -> do
-      (GU.Welcome10 _ vUp) <- SL.lift $ API.getUpdates Nothing
+      (GU.Welcome10 _ vUp) <- hLiftClientM h $ API.getUpdates Nothing
       Logger.logDebug (logHandle h) $ "Last result vector length " .< (V.length vUp)
-      liftBase $ writeIORef (lastUpdate h) (Just $ getNewLastUpdate vUp)
+      hSetLastUpdate h (Just $ getNewLastUpdate vUp)
       return $ vUp
     
 getNewLastUpdate :: Vector GU.ResultElement -> Int
@@ -166,11 +189,11 @@ filterUpdate lastUp = V.filter
   (\re-> 
     (lastUp < (GU.updateIDResultElement re)) )
 
-updateAccount :: Handle -> UserId -> AccountEvent -> SL.StateT Accounting ClientM ()
+updateAccount :: Monad m => Handle m -> UserId -> AccountEvent -> m ()
 updateAccount h n (AccountEvent chatID vMessage) = do
   Logger.logDebug (logHandle h) $ "Current UserId " .< n
   switchAccount h n chatID 
-  s1 <- SL.get
+  s1 <- hGetAccounting h
   Logger.logDebug (logHandle h) $ "Repetition count" .< (currentState s1)
   _ <- P.mapM (updateAccountMessage h chatID) (V.toList vMessage)
   refreshAccount h
@@ -179,7 +202,7 @@ updateAccount h n (AccountEvent chatID vMessage) = do
 -- updateAccount h n (AccountPoll chatID accTVotes vOption) = do
 --  switchAccount h n chatID 
 
-updatePoll :: Handle -> UserId -> Map PollId AccountPoll -> AccountState -> SL.StateT Accounting ClientM ()
+updatePoll :: Monad m => Handle m -> UserId -> Map PollId AccountPoll -> AccountState -> m ()
 updatePoll h n mapNAP ast = do
   Logger.logDebug (logHandle h) $ "Update account poll " 
   Logger.logDebug (logHandle h) $ "Poll account " .< (accountPollId ast)
@@ -196,8 +219,8 @@ updatePoll h n mapNAP ast = do
             either (const (EchoBot.stRepetitionCount $ accountState ast) ) fst $ 
             T.decimal $ GU.optionTextOption mO)
         P.mapM_ (sendAccMessage h (accountIdChatId $ accountId ast)) r
-        SL.modify (\s->s{currentPollID = Nothing})
-        s <- SL.get
+        hModifyAccounting h (\s->s{currentPollID = Nothing})
+        s <- hGetAccounting h
         Logger.logDebug (logHandle h) $ "Repetition count modify" .< (currentState s)
         refreshAccount h
         Logger.logDebug (logHandle h) $ "Repetition count modify post \"refrashAccount\" " .< (currentState s)
@@ -209,26 +232,26 @@ updatePoll h n mapNAP ast = do
       | (GU.voterCountOption o1) >= (GU.voterCountOption o2) = o1
       | True = o2
 
-refreshAccount :: Handle -> SL.StateT Accounting ClientM ()
+refreshAccount :: Monad m => Handle m -> m ()
 refreshAccount h = do
-  s <- SL.get
+  s <- hGetAccounting h
   switchAccount h (accountUserId $ currentAccountId s) (accountIdChatId $ currentAccountId s)
 
-switchAccount :: Handle -> UserId -> Int -> SL.StateT Accounting ClientM ()
+switchAccount :: Monad m => Handle m -> UserId -> Int -> m ()
 switchAccount h n chatId = do
-  s <- SL.get
+  s <- hGetAccounting h
   -- if ((currentAccountId s) /= (AccountId n chatId) )
   case ((mapState s) M.!? n) of
     (Just accSt) -> do
-       SL.modify (\s2->s2 {mapState = f (mapState s) (currentAccountId s) (currentState s) (currentPollID s) } )
-       SL.modify (\s2->s2 
+       hModifyAccounting h (\s2->s2 {mapState = f (mapState s) (currentAccountId s) (currentState s) (currentPollID s) } )
+       hModifyAccounting h (\s2->s2 
          { currentAccountId = AccountId n chatId
          , currentState = accountState accSt
          } )
     _ -> do
-      SL.modify (\s2->s2 {mapState = f (mapState s) (currentAccountId s) (currentState s) (currentPollID s)} )
+      hModifyAccounting h (\s2->s2 {mapState = f (mapState s) (currentAccountId s) (currentState s) (currentPollID s)} )
       let conf = EchoBot.hConfig $ handleEchoBot h
-      SL.modify (\s2->s2 
+      hModifyAccounting h (\s2->s2 
          { currentAccountId = AccountId n chatId
          , currentState = EchoBot.State $ EchoBot.confRepetitionCount conf
          } )
@@ -239,17 +262,17 @@ switchAccount h n chatId = do
       (AccountState currentAccId currentSt currentPollID')
       mapSt
 
-updateAccountMessage :: Handle -> Int -> AccountMessage -> SL.StateT Accounting ClientM ()
+updateAccountMessage :: Monad m => Handle m -> Int -> AccountMessage -> m ()
 updateAccountMessage h chatId x = do -- error "Not implement"
   lr <- EchoBot.respond (handleEchoBot h) (EchoBot.MessageEvent x)
   -- s1 <- SL.get
   -- Logger.logDebug (logHandle h) $ "Repetition count" .< (currentState s1)
   case lr of
     ((EchoBot.MenuResponse t lre):_ ) -> do
-      (PM.Welcome9 _ r) <- SL.lift $ API.sendPoll
+      (PM.Welcome9 _ r) <- hLiftClientM h $ API.sendPoll
         (Just chatId) (Just t) (Just $ printToListText lre)
       Logger.logDebug (logHandle h) $ "Send Poll "
-      SL.modify (\s->s{currentPollID = Just $ PM.pollIDPoll $ PM.pollResultClass $ r } )
+      hModifyAccounting h (\s->s{currentPollID = Just $ PM.pollIDPoll $ PM.pollResultClass $ r } )
     ys -> do 
       Logger.logDebug (logHandle h) $ "Output repeat message " .< (P.length ys)
       P.mapM_ (sendAccMessage h chatId) ys
@@ -258,14 +281,14 @@ updateAccountMessage h chatId x = do -- error "Not implement"
     printToListText [] = API.ListText []
     printToListText ((y,_):ys) = API.ListText $ (\lt-> (T.pack $ show y) :lt) $ API.unListText $ printToListText ys
 
-sendAccMessage :: Handle -> Int ->  EchoBot.Response AccountMessage -> SL.StateT Accounting ClientM ()
-sendAccMessage _ chatId (EchoBot.MessageResponse (AccountMessage t _ ) ) = do
-  _ <- SL.lift $ API.sendMessage (Just chatId) (Just t)
+sendAccMessage :: Monad m => Handle m -> Int -> EchoBot.Response AccountMessage -> m ()
+sendAccMessage h chatId (EchoBot.MessageResponse (AccountMessage t _ ) ) = do
+  _ <- hLiftClientM h $ API.sendMessage (Just chatId) (Just t)
   -- liftBase $ modifyIORef (lastUpdate h) (fmap ((+) 1) )
   return ()
 sendAccMessage h chatId (EchoBot.MessageResponse (AccountMessagePhoto sphid ) ) = do
   Logger.logDebug (logHandle h) $ "AccountMessagePhoto to list " .< (P.length (S.elems sphid))
-  _ <- SL.lift $ API.sendPhoto (Just chatId) (Just $ S.findMax sphid) -- P.mapM (P.foldl f [] sphid)
+  _ <- hLiftClientM h $ API.sendPhoto (Just chatId) (Just $ S.findMax sphid) -- P.mapM (P.foldl f [] sphid)
   -- liftBase $ modifyIORef (lastUpdate h) (fmap ((+) 1) ) 
   return ()
 {-  where
