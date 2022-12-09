@@ -8,11 +8,11 @@ module EchoBot
     respond,
     Event (MessageEvent, SetRepetitionCountEvent),
     Response (..),
-    State,
+    State (..), -- ????
     Handle (..),
     Config (..),
     RepetitionCount,
-    hasVariableText -- ???!!! delate the
+    hasVariableText, -- ???!!! delate the
   )
 where
 
@@ -109,7 +109,7 @@ type RepetitionCount = Int
 data State = State
   { stRepetitionCount :: RepetitionCount
   -- , stRepetitionMessageText :: Maybe T.Text
-  }
+  } deriving Show
 
 -- | Creates an initial, default bot state for a user.
 makeState :: Config -> Either Text State
