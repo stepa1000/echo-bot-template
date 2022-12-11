@@ -40,10 +40,15 @@ import Logger ((.<))
 
 data Handle m = Handle
   { hConfigTelegramBot :: Config
+  -- | Returns the last upadate count
   , hGetLastUpdate :: m (Maybe Int)
+  -- | Set the last update count
   , hSetLastUpdate :: Maybe Int -> m ()
+  -- | Returns the Accounting
   , hGetAccounting :: m Accounting
+  -- | Modify the Accounting
   , hModifyAccounting :: (Accounting -> Accounting) -> m ()
+  -- | Lift for ClientM Monad
   , hLiftClientM :: forall a. ClientM a -> m a
   , handleEchoBot :: EchoBot.Handle m AccountMessage
   }
@@ -56,15 +61,20 @@ type ChatId = Int
 type PollId = T.Text
 
 data Accounting = Accounting
-  { currentAccountId :: AccountId
+  { -- | Current identifier for chat and user
+    currentAccountId :: AccountId
   , currentState :: EchoBot.State
+    -- | Current identifer for polls for single user
   , currentPollID :: Maybe PollId
   , mapState :: Map UserId AccountState
   }
 
+-- | State for one account
 data AccountState = AccountState
-  { accountId :: AccountId
+  { -- | Identifier for chat and user
+    accountId :: AccountId
   , accountState :: EchoBot.State
+    -- | Identifer for polls for single user
   , accountPollId :: Maybe PollId
   }
 
@@ -76,7 +86,7 @@ data AccountId = AccountId
 data AccountMessage = AccountMessage
   { accountMesageText :: T.Text
   --, accountMesageID :: Int
-  , accountEntitiesMessage :: Maybe (Vector GU.Entity )
+  , accountEntitiesMessage :: Maybe (Vector GU.Entity ) -- ?????????????
   }
   | AccountMessagePhoto 
   { -- accountMesageID :: Int
@@ -93,6 +103,7 @@ textToAccountMessage t = AccountMessage t Nothing
 data AccountEvent = AccountEvent
   { accountChatId :: ChatId
   -- , accountFirstName :: Name
+  -- | Chat messages
   , accountMessages :: Vector AccountMessage
   }
 
@@ -105,9 +116,10 @@ data AccountPoll = AccountPoll
 
 data Config = Config
   { confBotToken :: T.Text -- confManager :: 
-  , confFirstNameBot :: T.Text
+  , confFirstNameBot :: T.Text -- ?????
   } deriving Show
 
+-- | initiates a bot handle for ClientM
 initHandleClientM :: Config 
            -> EchoBot.Handle ClientM AccountMessage
            -> IORef Accounting
@@ -125,21 +137,10 @@ initHandleClientM config ebHandle refAcc = do
     , handleEchoBot = ebHandle -- :: EchoBot.Handle m AccountMessage
     }
 
-{-
-withHandle :: Config 
-           -> EchoBot.Handle (SL.StateT Accounting ClientM) AccountMessage
-           -> (Handle -> SL.StateT Accounting ClientM a) 
-           -> SL.StateT Accounting ClientM a
-withHandle conf ebh f = do 
-  lu <- liftBase $ newIORef Nothing
-  f $ Handle 
-    { configTelegramBot = conf
-    , handleEchoBot = ebh
-    , lastUpdate = lu
-    }
--}
 run :: Monad m => Handle m -> m ()
 run h = do
+  -- Pulling up the counter of
+  -- the last update to fresh messages
   _ <- hGetUpdates h
   run' h
 
@@ -148,6 +149,7 @@ run' h = do
   runLoop h
   run' h
 
+-- | main loop body
 runLoop :: Monad m => Handle m -> m () -- IO ()
 runLoop h = do
   -- mlastUp <- liftBase $ readIORef (lastUpdate h)
@@ -163,6 +165,8 @@ runLoop h = do
     filterResult = vResultTovAccountEvent -- .
       -- filterOnlyUsers (configTelegramBot h)
 
+-- | Requests fresh messages and updates the counter of
+-- | the last update
 hGetUpdates :: Monad m => Handle m -> m (Vector GU.ResultElement)
 hGetUpdates h = do
   mlastUp <- hGetLastUpdate h 
@@ -180,15 +184,18 @@ hGetUpdates h = do
       Logger.logDebug (logHandle h) $ "Last result vector length " .< (V.length vUp)
       hSetLastUpdate h (Just $ getNewLastUpdate vUp)
       return $ vUp
-    
+
+-- | Returns the maximum update id  
 getNewLastUpdate :: Vector GU.ResultElement -> Int
 getNewLastUpdate = getMax . P.foldMap (Max . GU.updateIDResultElement)
 
+-- | Returns a message with an id greater than the current one
 filterUpdate :: Int -> Vector GU.ResultElement -> Vector GU.ResultElement
 filterUpdate lastUp = V.filter 
   (\re-> 
     (lastUp < (GU.updateIDResultElement re)) )
 
+-- | Updates the account for each message
 updateAccount :: Monad m => Handle m -> UserId -> AccountEvent -> m ()
 updateAccount h n (AccountEvent chatID vMessage) = do
   Logger.logDebug (logHandle h) $ "Current UserId " .< n
@@ -202,6 +209,7 @@ updateAccount h n (AccountEvent chatID vMessage) = do
 -- updateAccount h n (AccountPoll chatID accTVotes vOption) = do
 --  switchAccount h n chatID 
 
+-- | Updates the account for poll
 updatePoll :: Monad m => Handle m -> UserId -> Map PollId AccountPoll -> AccountState -> m ()
 updatePoll h n mapNAP ast = do
   Logger.logDebug (logHandle h) $ "Update account poll " 
@@ -232,6 +240,7 @@ updatePoll h n mapNAP ast = do
       | (GU.voterCountOption o1) >= (GU.voterCountOption o2) = o1
       | True = o2
 
+-- | writes the current state of the account to the map of accounts
 refreshAccount :: Monad m => Handle m -> m ()
 refreshAccount h = do
   s <- hGetAccounting h
@@ -262,6 +271,7 @@ switchAccount h n chatId = do
       (AccountState currentAccId currentSt currentPollID')
       mapSt
 
+-- | Message processing for the current account
 updateAccountMessage :: Monad m => Handle m -> Int -> AccountMessage -> m ()
 updateAccountMessage h chatId x = do -- error "Not implement"
   lr <- EchoBot.respond (handleEchoBot h) (EchoBot.MessageEvent x)
@@ -281,6 +291,7 @@ updateAccountMessage h chatId x = do -- error "Not implement"
     printToListText [] = API.ListText []
     printToListText ((y,_):ys) = API.ListText $ (\lt-> (T.pack $ show y) :lt) $ API.unListText $ printToListText ys
 
+-- | Send message or photo
 sendAccMessage :: Monad m => Handle m -> Int -> EchoBot.Response AccountMessage -> m ()
 sendAccMessage h chatId (EchoBot.MessageResponse (AccountMessage t _ ) ) = do
   _ <- hLiftClientM h $ API.sendMessage (Just chatId) (Just t)
