@@ -15,4 +15,4 @@ textToFrontEndType :: Text -> FrontEndType
 textToFrontEndType t
   | t == "Console" = ConsoleFrontEnd
   | t == "Telegram" = TelegramFrontEnd
-  | True = ConsoleFrontEnd
+  | otherwise = ConsoleFrontEnd

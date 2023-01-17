@@ -30,20 +30,20 @@ getBotConfig :: IO EchoBot.Config
 getBotConfig = do
    t <- T.readFile "config/EchoBot.yaml"
    case parse t >>= parseValue of
-     (Right v) -> return $ v
+     (Right v) -> return v
      (Left errorParse) -> error $ show errorParse
   where
     parseValue 
-      (Sections _ ( (Section _ _ (Sections _ (
-        (Section _ _ (C.Text _ t1)) :
-        (Section _ _ (C.Text _ t2) ) :
-        (Section _ _ (Number _ n)) :
-        [] )
+      (Sections _ [ Section _ _ (Sections _ [
+        Section _ _ (C.Text _ t1),
+        Section _ _ (C.Text _ t2),
+        Section _ _ (Number _ n)
+        ] 
         )
-      ) : [])) = return $ EchoBot.Config
+      ] ) = return $ EchoBot.Config
         { EchoBot.confHelpReply = t1
         , EchoBot.confRepeatReply = t2
-        , EchoBot.confRepetitionCount = ceiling $ numberToRational $ n
+        , EchoBot.confRepetitionCount = ceiling $ numberToRational n
         }
     parseValue _ = error "parseValue patern matching error"
 
@@ -55,12 +55,12 @@ getLoggerConfig = do -- error "Not implemented"
      (Right v) -> parseValue v
      (Left errorParse) -> error $ show errorParse
   where
-    parseValue (Sections _ ( (Section _ _ (Sections _ (
-        (Section _ _ (C.Text _ t1)) :
-        (Section _ _ (C.Text _ t2)) :
-        [] )
+    parseValue (Sections _ [Section _ _ (Sections _ [
+        Section _ _ (C.Text _ t1) ,
+        Section _ _ (C.Text _ t2)
+        ]
         )
-      ) : [])) = do
+      ] ) = do
         h <- SIO.openBinaryFile (T.unpack t1) SIO.WriteMode
         return $ Logger.Impl.Config 
           { Logger.Impl.confFileHandle = h
@@ -76,8 +76,8 @@ getFrontEndType = do -- error "Not implemented"
      (Right v) -> parseValue v
      (Left errorParse) -> error $ show errorParse
   where
-    parseValue (Sections _ ( (Section _ _ (C.Text _ t1) ) : [])) = do
-        return $ ConfigurationTypes.textToFrontEndType $ t1
+    parseValue (Sections _ [ Section _ _ (C.Text _ t1) ] ) = do
+        return $ ConfigurationTypes.textToFrontEndType t1
     parseValue _ = error "parseValue patern matching error"
 
 getTelegramConfig :: IO Telegram.Config
@@ -87,9 +87,9 @@ getTelegramConfig = do -- error "Not implemented"
      (Right v) -> parseValue v
      (Left errorParse) -> error $ show errorParse
   where
-    parseValue (Sections _ ( 
-          (Section _ _ (C.Text _ t1) ) : 
-          (Section _ _ (C.Text _ t2) ) :
-          [])) = do
+    parseValue (Sections _  [
+          Section _ _ (C.Text _ t1)  ,
+          Section _ _ (C.Text _ t2)  
+          ]) = do
         return $ Telegram.Config t1 t2
     parseValue _ = error "parseValue patern matching error"
