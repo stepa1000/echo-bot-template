@@ -106,7 +106,7 @@ type RepetitionCount = Int
 -- keep the number of repetitions for a single user. Let the caller
 -- code be responsible for tracking multiple users and states for
 -- their bots.
-data State = State
+newtype State = State
   { stRepetitionCount :: RepetitionCount
   -- , stRepetitionMessageText :: Maybe T.Text
   } deriving Show
@@ -149,27 +149,27 @@ handleHelpCommand h = do
   let conf = hConfig h
   -- st <- (hGetState h)
   -- let count = stRepetitionCount st
-  return $ [MessageResponse $ hMessageFromText h $ confHelpReply conf]
+  return [MessageResponse $ hMessageFromText h $ confHelpReply conf]
 -- error "Not implemented"
 
 handleSettingRepetitionCount :: Monad m => Handle m a -> Int -> m [Response a]
 handleSettingRepetitionCount h count | count > 0 && count <= 5 = do
   Logger.logInfo (hLogHandle h) $ "The user has set the repetition count to " .< count
-  (hModifyState' h) (\s->s {stRepetitionCount = count} )
-  return $ [MessageResponse $ hMessageFromText h $ "The user has set the repetition count to " .< count ]
+  hModifyState' h (\s->s {stRepetitionCount = count} )
+  return [MessageResponse $ hMessageFromText h $ "The user has set the repetition count to " .< count ]
   -- error "Not implemented"
 handleSettingRepetitionCount h count = do
   Logger.logInfo (hLogHandle h) $ 
     ("The user has set the repetition count to " .< 
     count) `T.append` ", but dont apply, becouse count mast be > 0 and <= 5 "
-  return $ [MessageResponse $ hMessageFromText h $ "Repetition count must be > 0 and <= 5"]
+  return [MessageResponse $ hMessageFromText h "Repetition count must be > 0 and <= 5"]
 
 handleRepeatCommand :: Monad m => Handle m a -> m [Response a]
 handleRepeatCommand h = do
   Logger.logInfo (hLogHandle h) "Got the repeat command"
-  st <- (hGetState h)
-  let conf = (hConfig h)
-  return $ [
+  st <- hGetState h
+  let conf = hConfig h
+  return [
       MenuResponse (hasVariableText "count" (T.pack $ show $ stRepetitionCount st) $ confRepeatReply conf)
         [(i, SetRepetitionCountEvent i) | i <- [1..5]]
     ]
@@ -178,23 +178,23 @@ handleRepeatCommand h = do
 -- | find variables and repelace specified
 --                   var    specified   text
 hasVariableText :: T.Text -> T.Text -> T.Text -> T.Text
-hasVariableText tv tn t = maybe t id $ do
+hasVariableText tv tn t = fromMaybe t $ do
     iv <- miv
-    if tv == (T.take lv $ T.drop (iv+1) t)
-      then Just $ (T.take iv t) `T.append` tn `T.append` (T.drop (iv + lv + 2) t)
+    if tv == T.take lv (T.drop (iv+1) t)
+      then Just $ T.take iv t `T.append` tn `T.append` T.drop (iv + lv + 2) t
       else Nothing -- Just $ (T.take lv $ T.drop iv t)
   where
-    miv = T.findIndex ((==) '{') t
+    miv = T.findIndex ('{' ==) t
     lv = T.length tv
 
 respondWithEchoedMessage :: Monad m => Handle m a -> a -> m [Response a]
 respondWithEchoedMessage h message = do
   Logger.logInfo (hLogHandle h) $
     "Echoing user input: " .< fromMaybe "<multimedia?>" (hTextFromMessage h message)
-  st <- (hGetState h)
+  st <- hGetState h
   let count = stRepetitionCount st
   -- let mMessageT = stRepetitionMessageText st
   -- let conf = (hConfig h)
   -- case mMessageT of -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  return $ take count $ repeat (MessageResponse $ message) 
+  return $ replicate count (MessageResponse message) 
   -- error "Not implemented"

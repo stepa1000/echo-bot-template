@@ -29,7 +29,7 @@ data Config = Config
 
 liftHandleBaseIO :: MonadBase IO m
                  => Logger.Handle IO -> Logger.Handle m
-liftHandleBaseIO h = Logger.Handle {Logger.hLowLevelLog = \l t -> liftBase $ (Logger.hLowLevelLog h) l t } 
+liftHandleBaseIO h = Logger.Handle {Logger.hLowLevelLog = \l t -> liftBase $ Logger.hLowLevelLog h l t } 
 
 withHandle :: Config -> (Logger.Handle IO -> IO ()) -> IO ()
 withHandle config f = do
@@ -37,8 +37,8 @@ withHandle config f = do
   SIO.hClose $ confFileHandle config
 
 logWith :: Config -> Logger.Level -> T.Text -> IO ()
-logWith conf logLvl t | logLvl >= (confMinLevel conf) = do
-  T.hPutStrLn (confFileHandle conf) $ (T.pack $ show logLvl ++ ": " ) `T.append` t
+logWith conf logLvl t | logLvl >= confMinLevel conf = do
+  T.hPutStrLn (confFileHandle conf) $ T.pack (show logLvl ++ ": " ) `T.append` t
   SIO.hFlush (confFileHandle conf)
 logWith _ _ _ = return ()
 

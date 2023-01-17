@@ -23,6 +23,7 @@ import Data.Maybe
 import Control.Monad.Base
 import Control.Applicative
 
+import Control.Monad
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
 --import qualified Data.Text.IO as TIO
@@ -156,11 +157,10 @@ runLoop h = do
   Logger.logInfo (logHandle h) "Start main telegram bot loop"
   vUp <- hGetUpdates h
   let (mapNAccount,mapAccPoll) = filterResult vUp
-  _ <- P.sequence $ M.mapWithKey (\n-> (updateAccount h n)) mapNAccount
+  P.sequence_ $ M.mapWithKey (updateAccount h) mapNAccount
   -- refreshAccount h
   s <- hGetAccounting h
-  _ <- P.sequence $ M.mapWithKey (\n-> (updatePoll h n mapAccPoll)) (mapState s)
-  return ()
+  P.sequence_ $ M.mapWithKey (\n-> updatePoll h n mapAccPoll) (mapState s)
   where
     filterResult = vResultTovAccountEvent -- .
       -- filterOnlyUsers (configTelegramBot h)
@@ -174,16 +174,16 @@ hGetUpdates h = do
   case mlastUp of
     (Just lUp) -> do
       (GU.Welcome10 _ vUp) <- hLiftClientM h $ API.getUpdates (Just (lUp + 1) )
-      Logger.logDebug (logHandle h) $ "Last result vector length " .< (V.length vUp)
-      Logger.logDebug (logHandle h) $ "Filtered result vector length " .< (V.length $ filterUpdate lUp vUp)
-      Logger.logDebug (logHandle h) $ "Vector IDUpdates " .< (fmap GU.updateIDResultElement vUp )
+      Logger.logDebug (logHandle h) $ "Last result vector length " .< V.length vUp
+      Logger.logDebug (logHandle h) $ "Filtered result vector length " .< V.length (filterUpdate lUp vUp)
+      Logger.logDebug (logHandle h) $ "Vector IDUpdates " .< fmap GU.updateIDResultElement vUp 
       hSetLastUpdate h (Just $ max (getNewLastUpdate vUp) lUp )
       return $ filterUpdate lUp vUp
     _ -> do
       (GU.Welcome10 _ vUp) <- hLiftClientM h $ API.getUpdates Nothing
-      Logger.logDebug (logHandle h) $ "Last result vector length " .< (V.length vUp)
+      Logger.logDebug (logHandle h) $ "Last result vector length " .< V.length vUp
       hSetLastUpdate h (Just $ getNewLastUpdate vUp)
-      return $ vUp
+      return vUp
 
 -- | Returns the maximum update id  
 getNewLastUpdate :: Vector GU.ResultElement -> Int
@@ -193,7 +193,7 @@ getNewLastUpdate = getMax . P.foldMap (Max . GU.updateIDResultElement)
 filterUpdate :: Int -> Vector GU.ResultElement -> Vector GU.ResultElement
 filterUpdate lastUp = V.filter 
   (\re-> 
-    (lastUp < (GU.updateIDResultElement re)) )
+    lastUp < GU.updateIDResultElement re )
 
 -- | Updates the account for each message
 updateAccount :: Monad m => Handle m -> UserId -> AccountEvent -> m ()
@@ -201,8 +201,8 @@ updateAccount h n (AccountEvent chatID vMessage) = do
   Logger.logDebug (logHandle h) $ "Current UserId " .< n
   switchAccount h n chatID 
   s1 <- hGetAccounting h
-  Logger.logDebug (logHandle h) $ "Repetition count" .< (currentState s1)
-  _ <- P.mapM (updateAccountMessage h chatID) (V.toList vMessage)
+  Logger.logDebug (logHandle h) $ "Repetition count" .< currentState s1
+  P.mapM_ (updateAccountMessage h chatID) (V.toList vMessage)
   refreshAccount h
   return ()
 -- error "Not implement"
@@ -212,12 +212,12 @@ updateAccount h n (AccountEvent chatID vMessage) = do
 -- | Updates the account for poll
 updatePoll :: Monad m => Handle m -> UserId -> Map PollId AccountPoll -> AccountState -> m ()
 updatePoll h n mapNAP ast = do
-  Logger.logDebug (logHandle h) $ "Update account poll " 
-  Logger.logDebug (logHandle h) $ "Poll account " .< (accountPollId ast)
+  Logger.logDebug (logHandle h) "Update account poll " 
+  Logger.logDebug (logHandle h) $ "Poll account " .< accountPollId ast
   Logger.logDebug (logHandle h) $ "Map polls" .< mapNAP
-  case ((accountPollId ast) >>= (\i-> mapNAP M.!? i) ) of
-    (Just p) -> if (accTotalVoterPoll p) > 0
-      then do
+  case accountPollId ast >>= (mapNAP M.!?) of
+    (Just p) -> when (accTotalVoterPoll p > 0) $
+      do
         let mO = P.foldl1 maxOption (accOptionsPoll p)
         Logger.logDebug (logHandle h) $ "Current poll maximum for option " .< mO 
         switchAccount h n (accountIdChatId $ accountId ast)
@@ -229,16 +229,15 @@ updatePoll h n mapNAP ast = do
         P.mapM_ (sendAccMessage h (accountIdChatId $ accountId ast)) r
         hModifyAccounting h (\s->s{currentPollID = Nothing})
         s <- hGetAccounting h
-        Logger.logDebug (logHandle h) $ "Repetition count modify" .< (currentState s)
+        Logger.logDebug (logHandle h) $ "Repetition count modify" .< currentState s
         refreshAccount h
-        Logger.logDebug (logHandle h) $ "Repetition count modify post \"refrashAccount\" " .< (currentState s)
+        Logger.logDebug (logHandle h) $ "Repetition count modify post \"refrashAccount\" " .< currentState s
         return ()
-      else return ()
     _ -> return ()
   where
     maxOption o1 o2 
-      | (GU.voterCountOption o1) >= (GU.voterCountOption o2) = o1
-      | True = o2
+      | GU.voterCountOption o1 >= GU.voterCountOption o2 = o1
+      | otherwise = o2
 
 -- | writes the current state of the account to the map of accounts
 refreshAccount :: Monad m => Handle m -> m ()
@@ -250,7 +249,7 @@ switchAccount :: Monad m => Handle m -> UserId -> Int -> m ()
 switchAccount h n chatId = do
   s <- hGetAccounting h
   -- if ((currentAccountId s) /= (AccountId n chatId) )
-  case ((mapState s) M.!? n) of
+  case mapState s M.!? n of
     (Just accSt) -> do
        hModifyAccounting h (\s2->s2 {mapState = f (mapState s) (currentAccountId s) (currentState s) (currentPollID s) } )
        hModifyAccounting h (\s2->s2 
@@ -281,15 +280,15 @@ updateAccountMessage h chatId x = do -- error "Not implement"
     ((EchoBot.MenuResponse t lre):_ ) -> do
       (PM.Welcome9 _ r) <- hLiftClientM h $ API.sendPoll
         (Just chatId) (Just t) (Just $ printToListText lre)
-      Logger.logDebug (logHandle h) $ "Send Poll "
-      hModifyAccounting h (\s->s{currentPollID = Just $ PM.pollIDPoll $ PM.pollResultClass $ r } )
+      Logger.logDebug (logHandle h) "Send Poll "
+      hModifyAccounting h (\s->s{currentPollID = Just $ PM.pollIDPoll $ PM.pollResultClass r } )
     ys -> do 
-      Logger.logDebug (logHandle h) $ "Output repeat message " .< (P.length ys)
+      Logger.logDebug (logHandle h) $ "Output repeat message " .< P.length ys
       P.mapM_ (sendAccMessage h chatId) ys
   where
     printToListText :: [(EchoBot.RepetitionCount, EchoBot.Event a)] -> API.ListText
     printToListText [] = API.ListText []
-    printToListText ((y,_):ys) = API.ListText $ (\lt-> (T.pack $ show y) :lt) $ API.unListText $ printToListText ys
+    printToListText ((y,_):ys) = API.ListText $ (\lt-> T.pack (show y) :lt) $ API.unListText $ printToListText ys
 
 -- | Send message or photo
 sendAccMessage :: Monad m => Handle m -> Int -> EchoBot.Response AccountMessage -> m ()
@@ -298,7 +297,7 @@ sendAccMessage h chatId (EchoBot.MessageResponse (AccountMessage t _ ) ) = do
   -- liftBase $ modifyIORef (lastUpdate h) (fmap ((+) 1) )
   return ()
 sendAccMessage h chatId (EchoBot.MessageResponse (AccountMessagePhoto sphid ) ) = do
-  Logger.logDebug (logHandle h) $ "AccountMessagePhoto to list " .< (P.length (S.elems sphid))
+  Logger.logDebug (logHandle h) $ "AccountMessagePhoto to list " .< P.length (S.elems sphid)
   _ <- hLiftClientM h $ API.sendPhoto (Just chatId) (Just $ S.findMax sphid) -- P.mapM (P.foldl f [] sphid)
   -- liftBase $ modifyIORef (lastUpdate h) (fmap ((+) 1) ) 
   return ()
@@ -312,9 +311,9 @@ sendAccMessage _ _ _ = return ()
 filterOnlyUsers :: Config -> Vector GU.ResultElement -> Vector GU.ResultElement
 filterOnlyUsers conf = V.filter f
   where
-    f r = maybe False id $ do
+    f r = fromMaybe False $ do
       mre <- GU.messageResultElement r
-      return $ (confFirstNameBot conf) /= (GU.firstNameFrom $ GU.fromMessage mre)
+      return $ confFirstNameBot conf /= GU.firstNameFrom $ GU.fromMessage mre
 
 vResultTovAccountEvent :: Vector GU.ResultElement -> (Map UserId AccountEvent, Map PollId AccountPoll) -- Maybe (Map Name [AccountEvent]) -- AccountMessage 
 vResultTovAccountEvent = P.foldl f (M.empty,M.empty)
@@ -326,7 +325,7 @@ vResultTovAccountEvent = P.foldl f (M.empty,M.empty)
         (GU.fromIDFrom $ GU.fromMessage re) 
         (AccountEvent 
           { accountChatId = GU.chatIDChat $ GU.chatMessage re
-          , accountMessages = V.singleton $ accMessage
+          , accountMessages = V.singleton accMessage
           }
         ) ma, mapoll) 
       ) <|> ( do
@@ -340,11 +339,11 @@ vResultTovAccountEvent = P.foldl f (M.empty,M.empty)
           , accOptionsPoll = GU.optionsPoll re
           }
         ) mapoll)
-      ) <|> (return (ma,mapoll))
+      ) <|> return (ma,mapoll)
     readAccountMessage 
       (GU.Message _ _ _ _ _ _ (Just vphoto)) = Just $ AccountMessagePhoto 
         { -- accountMesageID = mid
-        accountFileIDPhoto = P.foldl (\s ph -> S.insert (GU.fileIDPhoto ph) s) (S.empty) vphoto
+        accountFileIDPhoto = P.foldl (\s ph -> S.insert (GU.fileIDPhoto ph) s) S.empty vphoto
         }
     readAccountMessage 
       (GU.Message _ _ _ _ (Just mText) mve _ ) = Just $ AccountMessage
@@ -356,12 +355,12 @@ vResultTovAccountEvent = P.foldl f (M.empty,M.empty)
     g (AccountEvent _ m1) (AccountEvent chatid m2) = AccountEvent chatid (m1 V.++ m2)
     accomulatePoll a1@(AccountPoll rid _ _ _) a2@(AccountPoll rid2 _ _ _)
       | rid > rid2 = a1
-      | True = a2
+      | otherwise = a2
 
 clientEnvDefault :: Config -> IO ClientEnv
 clientEnvDefault conf = do 
   m <- newManager tlsManagerSettings -- defaultManagerSettings
-  url <- parseBaseUrl $ "https://api.telegram.org/bot" P.++ (T.unpack $ confBotToken conf)
+  url <- parseBaseUrl $ "https://api.telegram.org/bot" P.++ T.unpack (confBotToken conf)
   return $ mkClientEnv m url
 
 testUpdate' :: Config -> IO () -- (Either ClientError Data.Welcome10)

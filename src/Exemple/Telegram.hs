@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+--{-# LANGUAGE OverloadedStrings #-}
 
 -- | The tekegram front-end
 module Exemple.Telegram where

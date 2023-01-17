@@ -9,6 +9,8 @@ module FrontEnd.Console
   )
 where
 
+import Control.Monad
+
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
 import qualified Data.Text.IO as TIO
@@ -31,10 +33,9 @@ run h = do
 runLoop :: Handle -> T.Text -> IO ()
 runLoop h t = do
   b <- runLoop' h t
-  if b then do
+  when b $ do
     tn <- TIO.getLine
     runLoop h tn
-    else return ()
 
 runLoop' :: Handle -> T.Text -> IO Bool
 runLoop' _ t | t == "/exit" = return False
@@ -48,13 +49,12 @@ runLoop' h t = do
         let conf = EchoBot.hConfig (hBotHandle h)
         lr2 <- EchoBot.respond (hBotHandle h) $ 
           EchoBot.SetRepetitionCountEvent $ 
-          either (const $ EchoBot.confRepetitionCount conf) id $ 
-          fmap fst $
+          either (const $ EchoBot.confRepetitionCount conf) fst $ 
           T.decimal tn
-        _ <- mapM (TIO.putStrLn . printResponse) lr2 -- !!!!!!!!!!!
+        mapM_ (TIO.putStrLn . printResponse) lr2 -- !!!!!!!!!!!
         return True
     ls -> do
-       _ <- mapM (TIO.putStrLn . printResponse) ls
+       mapM_ (TIO.putStrLn . printResponse) ls
        return True
 
 printResponse :: EchoBot.Response T.Text -> T.Text
