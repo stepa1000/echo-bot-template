@@ -313,7 +313,7 @@ filterOnlyUsers conf = V.filter f
   where
     f r = fromMaybe False $ do
       mre <- GU.messageResultElement r
-      return $ confFirstNameBot conf /= GU.firstNameFrom $ GU.fromMessage mre
+      return $ confFirstNameBot conf /= GU.firstNameFrom (GU.fromMessage mre)
 
 vResultTovAccountEvent :: Vector GU.ResultElement -> (Map UserId AccountEvent, Map PollId AccountPoll) -- Maybe (Map Name [AccountEvent]) -- AccountMessage 
 vResultTovAccountEvent = P.foldl f (M.empty,M.empty)
