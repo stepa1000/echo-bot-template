@@ -8,9 +8,9 @@ import Data.Text
 import Data.Vector
 import Data.ByteString.Lazy
 
-data Welcome10 = Welcome10
-    { okWelcome10 :: Bool
-    , resultWelcome10 :: Vector ResultElement
+data WelcomeUpdate = WelcomeUpdate -- Welcome10
+    { okWelcomeUpdate :: Bool
+    , resultWelcomeUpdate :: Vector ResultElement
     } deriving (Show)
 
 data ResultElement = ResultElement
@@ -25,7 +25,7 @@ data Message = Message
     , chatMessage :: Chat
     , dateMessage :: Int
     , messageTextMessage :: Maybe Text
-    , entitiesMessage :: Maybe (Vector Entity)
+--    , entitiesMessage :: Maybe (Vector Entity)
     , photoMessage :: Maybe (Vector Photo)
     } deriving (Show)
 
@@ -34,13 +34,13 @@ data Chat = Chat
     , firstNameChat :: Text
     , chatTypeChat :: Text
     } deriving (Show)
-
+{-
 data Entity = Entity
     { offsetEntity :: Int
     , lengthEntity :: Int
     , entityTypeEntity :: Text
     } deriving (Show)
-
+-}
 data From = From
     { fromIDFrom :: Int
     , isBotFrom :: Bool
@@ -72,18 +72,18 @@ data Option = Option
     , voterCountOption :: Int
     } deriving (Show)
 
-decodeTopLevel :: ByteString -> Maybe Welcome10
+decodeTopLevel :: ByteString -> Maybe WelcomeUpdate
 decodeTopLevel = decode
 
-instance ToJSON Welcome10 where
-    toJSON (Welcome10 okWelcome10' resultWelcome10') =
+instance ToJSON WelcomeUpdate where
+    toJSON (WelcomeUpdate okWelcome10' resultWelcome10') =
         object
         [ "ok" .= okWelcome10'
         , "result" .= resultWelcome10'
         ]
 
-instance FromJSON Welcome10 where
-    parseJSON (Object v) = Welcome10
+instance FromJSON WelcomeUpdate where
+    parseJSON (Object v) = WelcomeUpdate
         <$> v .: "ok"
         <*> v .: "result"
     parseJSON _ = error "parser"
@@ -104,14 +104,14 @@ instance FromJSON ResultElement where
     parseJSON _ = error "parser"
 
 instance ToJSON Message where
-    toJSON (Message messageIDMessage' fromMessage' chatMessage' dateMessage' messageTextMessage' entitiesMessage' photoMessage') =
+    toJSON (Message messageIDMessage' fromMessage' chatMessage' dateMessage' messageTextMessage' {-entitiesMessage'-} photoMessage') =
         object
         [ "message_id" .= messageIDMessage'
         , "from" .= fromMessage'
         , "chat" .= chatMessage'
         , "date" .= dateMessage'
         , "text" .= messageTextMessage'
-        , "entities" .= entitiesMessage'
+        -- , "entities" .= entitiesMessage'
         , "photo" .= photoMessage'
         ]
 
@@ -122,7 +122,7 @@ instance FromJSON Message where
         <*> v .: "chat"
         <*> v .: "date"
         <*> v .:? "text"
-        <*> v .:? "entities"
+        -- <*> v .:? "entities"
         <*> v .:? "photo"
     parseJSON _ = error "parser"
 
@@ -140,7 +140,7 @@ instance FromJSON Chat where
         <*> v .: "first_name"
         <*> v .: "type"
     parseJSON _ = error "parser"
-
+{-
 instance ToJSON Entity where
     toJSON (Entity offsetEntity' lengthEntity' entityTypeEntity') =
         object
@@ -155,7 +155,7 @@ instance FromJSON Entity where
         <*> v .: "length"
         <*> v .: "type"
     parseJSON _ = error "parser"
-
+-}
 instance ToJSON From where
     toJSON (From fromIDFrom' isBotFrom' firstNameFrom' languageCodeFrom') =
         object

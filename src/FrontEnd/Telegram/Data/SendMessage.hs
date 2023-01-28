@@ -10,9 +10,9 @@ import Data.ByteString.Lazy
 
 -- import FrontEnd.Telegram.Data.GetUpdate
 
-data Welcome2 = Welcome2
-    { okWelcome2 :: Bool
-    , resultWelcome2 :: ResultClass
+data WelcomeSendMessage = WelcomeSendMessage -- 2
+    { okWelcomeSendMesssage :: Bool
+    , resultWelcomeSendMessage :: ResultClass
     } deriving (Show)
 
 data ResultClass = ResultClass
@@ -36,18 +36,18 @@ data From = From
     , usernameFrom :: Text
     } deriving (Show)
 
-decodeTopLevel :: ByteString -> Maybe Welcome2
+decodeTopLevel :: ByteString -> Maybe WelcomeSendMessage
 decodeTopLevel = decode
 
-instance ToJSON Welcome2 where
-    toJSON (Welcome2 okWelcome2' resultWelcome2') =
+instance ToJSON WelcomeSendMessage where
+    toJSON (WelcomeSendMessage okWelcome2' resultWelcome2') =
         object
         [ "ok" .= okWelcome2'
         , "result" .= resultWelcome2'
         ]
 
-instance FromJSON Welcome2 where
-    parseJSON (Object v) = Welcome2
+instance FromJSON WelcomeSendMessage where
+    parseJSON (Object v) = WelcomeSendMessage
         <$> v .: "ok"
         <*> v .: "result"
     parseJSON _ = error "parser"

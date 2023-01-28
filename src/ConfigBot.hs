@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 -- | A module to provide a configuration reader for other modules.
 module ConfigBot
   ( getBotConfig,
@@ -6,6 +7,8 @@ module ConfigBot
     getTelegramConfig
   )
 where
+
+import GHC.Generics
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -19,11 +22,16 @@ import qualified Logger
 
 import qualified FrontEnd.Telegram.Telegram as Telegram
 
-import Config as C
+import Data.Yaml
 
--- import Debug.Trace
--- import Data.Ini.Config
+data GlobalConfig = GConfig
+  { confEchoBot :: EchoBot.Config
+  , confLogger :: Logger.Impl.PreConfig
+  , confConfigurationTypes :: ConfigurationTypes.FrontEndType
+  , confTelegram :: Telegram.Config
+  } deriving (Generic, ToJSON, FromJSON)
 
+{-
 -- | Gets the bot config. In any case it can provide reasonable
 -- default values.
 getBotConfig :: IO EchoBot.Config
@@ -93,3 +101,4 @@ getTelegramConfig = do -- error "Not implemented"
           ]) = do
         return $ Telegram.Config t1 t2
     parseValue _ = error "parseValue patern matching error"
+-}

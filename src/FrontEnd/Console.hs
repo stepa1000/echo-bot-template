@@ -28,7 +28,6 @@ run h = do
   -- 1. Read a line from the console.
   -- 2. Send it to the bot, get its response and output it.
   -- 3. Go to 1.
-  -- error "Not implemented"
 
 runLoop :: Handle -> T.Text -> IO ()
 runLoop h t = do
@@ -51,7 +50,7 @@ runLoop' h t = do
           EchoBot.SetRepetitionCountEvent $ 
           either (const $ EchoBot.confRepetitionCount conf) fst $ 
           T.decimal tn
-        mapM_ (TIO.putStrLn . printResponse) lr2 -- !!!!!!!!!!!
+        mapM_ (TIO.putStrLn . printResponse) lr2 
         return True
     ls -> do
        mapM_ (TIO.putStrLn . printResponse) ls

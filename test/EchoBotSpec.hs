@@ -26,7 +26,7 @@ spec =
           let comment = T.pack str
           let config = stubConfig
           let h = handleWith config
-          responses <- _a $
+          responses <-
             runBotWithConfig config $ respond h (MessageEvent comment)
           responses `shouldBe` [MessageResponse comment]
 

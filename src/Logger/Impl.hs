@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 -- | The default implementation of the Logger interface.
 module Logger.Impl
@@ -9,12 +10,35 @@ module Logger.Impl
   )
 where
 
+import GHC.Generics
+
 import Control.Monad.Base
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Logger
 import qualified System.IO as SIO
+
+import Data.Yaml
+
+data PreConfig = PreConfig
+  { preconfFilePath :: String
+  , preconfMinLevel :: Logger.Level
+  } deriving (Generic,FromJSON,ToJSON)
+
+withPreConf :: PreConfig -> (Logger.Handle IO -> IO a) -> IO a
+withPreConf pc g = do
+  withPreConf' pc (`withHandle` g)
+
+withPreConf' :: PreConfig -> (Config -> IO a) -> IO a
+withPreConf' pc g = do
+  h <- SIO.openFile (preconfFilePath pc) SIO.WriteMode
+  a <- g $ Config
+    { confFileHandle = h
+    , confMinLevel = preconfMinLevel pc
+    }
+  SIO.hClose h
+  return a
 
 data Config = Config
   { -- | A file handle to output formatted log messages to with

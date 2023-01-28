@@ -27,27 +27,24 @@ instance ToHttpApiData ListText where
       f (x:xs) = "\"" `T.append` x `T.append` "\""  `T.append` ("," `T.append` f xs )
       f _ = ""
 
-type TelegramAPI = "getUpdates" :> QueryParam "offset" Int :> Get '[JSON] GU.Welcome10
+type TelegramAPI = "getUpdates" :> QueryParam "offset" Int :> Get '[JSON] GU.WelcomeUpdate
               :<|> "sendMessage" :> QueryParam "chat_id" Int 
-                                 :> QueryParam "text" T.Text 
-                                 -- :> QueryParam' '[Optional,Strict,JSON] "" (Vector GU.Entity)
-                                 :> Get '[JSON] SM.Welcome2
+                                 :> QueryParam "text" T.Text
+                                 :> Get '[JSON] SM.WelcomeSendMessage
               :<|> "sendPhoto" :> QueryParam "chat_id" Int
                                :> QueryParam "photo" T.Text
-                               :> Get '[JSON] SP.Welcome 
+                               :> Get '[JSON] SP.WelcomePhoto 
               :<|> "sendPoll" :> QueryParam "chat_id" Int
                               :> QueryParam "question" T.Text
                               :> QueryParam "options" ListText
-                              :> Get '[JSON] PM.Welcome9
-{- (QueryParam "chat_id" Int 
-                                 :<|> QueryParam "chat_id" String )
--}
+                              :> Get '[JSON] PM.WelcomePoll
+
 telegramAPI :: Proxy TelegramAPI
 telegramAPI = Proxy
 
-getUpdates :: Maybe Int -> ClientM GU.Welcome10
-sendMessage :: Maybe Int -> Maybe T.Text -> ClientM SM.Welcome2
-sendPhoto :: Maybe Int -> Maybe T.Text -> ClientM SP.Welcome
-sendPoll :: Maybe Int -> Maybe T.Text -> Maybe ListText -> ClientM PM.Welcome9
+getUpdates :: Maybe Int -> ClientM GU.WelcomeUpdate
+sendMessage :: Maybe Int -> Maybe T.Text -> ClientM SM.WelcomeSendMessage
+sendPhoto :: Maybe Int -> Maybe T.Text -> ClientM SP.WelcomePhoto
+sendPoll :: Maybe Int -> Maybe T.Text -> Maybe ListText -> ClientM PM.WelcomePoll
 
 getUpdates :<|> sendMessage :<|> sendPhoto :<|> sendPoll = client telegramAPI

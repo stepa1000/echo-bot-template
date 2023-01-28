@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 -- | The pure echo-bot logic module. It doesn't know anything about
 -- Telegram, other chat protocols, or any input/output. This is why we
@@ -16,12 +17,15 @@ module EchoBot
   )
 where
 
+import GHC.Generics
+
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Logger ((.<))
 import qualified Logger
 
+import Data.Yaml
 -- | The bot dependencies that the caller code should satisfy.
 --
 -- Its @m@ parameter is a monad type where all actions are performed.
@@ -69,7 +73,7 @@ data Config = Config
     -- | The initial repetition count for echoing messages to start
     -- with.
     confRepetitionCount :: Int
-  } deriving Show
+  } deriving (Show, Generic, ToJSON, FromJSON)
 
 -- | An external event that the bot should process and respond to.
 -- It's parameterized with a message type.
