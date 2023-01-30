@@ -6,7 +6,9 @@
 module Logger.Impl
   ( withHandle,
     Config (..),
-    liftHandleBaseIO
+    liftHandleBaseIO,
+    withPreConf,
+    PreConfig(..)
   )
 where
 
@@ -55,10 +57,11 @@ liftHandleBaseIO :: MonadBase IO m
                  => Logger.Handle IO -> Logger.Handle m
 liftHandleBaseIO h = Logger.Handle {Logger.hLowLevelLog = \l t -> liftBase $ Logger.hLowLevelLog h l t } 
 
-withHandle :: Config -> (Logger.Handle IO -> IO ()) -> IO ()
+withHandle :: Config -> (Logger.Handle IO -> IO a) -> IO a
 withHandle config f = do
-  f Logger.Handle {Logger.hLowLevelLog = logWith config}
+  a <- f Logger.Handle {Logger.hLowLevelLog = logWith config}
   SIO.hClose $ confFileHandle config
+  return a
 
 logWith :: Config -> Logger.Level -> T.Text -> IO ()
 logWith conf logLvl t | logLvl >= confMinLevel conf = do

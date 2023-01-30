@@ -8,7 +8,7 @@ import Data.Text
 import Data.Vector
 import Data.ByteString.Lazy
 
-data WelcomeUpdate = WelcomeUpdate -- Welcome10
+data WelcomeUpdate = WelcomeUpdate 
     { okWelcomeUpdate :: Bool
     , resultWelcomeUpdate :: Vector ResultElement
     } deriving (Show)
@@ -25,7 +25,6 @@ data Message = Message
     , chatMessage :: Chat
     , dateMessage :: Int
     , messageTextMessage :: Maybe Text
---    , entitiesMessage :: Maybe (Vector Entity)
     , photoMessage :: Maybe (Vector Photo)
     } deriving (Show)
 
@@ -34,13 +33,7 @@ data Chat = Chat
     , firstNameChat :: Text
     , chatTypeChat :: Text
     } deriving (Show)
-{-
-data Entity = Entity
-    { offsetEntity :: Int
-    , lengthEntity :: Int
-    , entityTypeEntity :: Text
-    } deriving (Show)
--}
+
 data From = From
     { fromIDFrom :: Int
     , isBotFrom :: Bool
@@ -104,14 +97,13 @@ instance FromJSON ResultElement where
     parseJSON _ = error "parser"
 
 instance ToJSON Message where
-    toJSON (Message messageIDMessage' fromMessage' chatMessage' dateMessage' messageTextMessage' {-entitiesMessage'-} photoMessage') =
+    toJSON (Message messageIDMessage' fromMessage' chatMessage' dateMessage' messageTextMessage' photoMessage') =
         object
         [ "message_id" .= messageIDMessage'
         , "from" .= fromMessage'
         , "chat" .= chatMessage'
         , "date" .= dateMessage'
         , "text" .= messageTextMessage'
-        -- , "entities" .= entitiesMessage'
         , "photo" .= photoMessage'
         ]
 
@@ -122,7 +114,6 @@ instance FromJSON Message where
         <*> v .: "chat"
         <*> v .: "date"
         <*> v .:? "text"
-        -- <*> v .:? "entities"
         <*> v .:? "photo"
     parseJSON _ = error "parser"
 
@@ -140,22 +131,7 @@ instance FromJSON Chat where
         <*> v .: "first_name"
         <*> v .: "type"
     parseJSON _ = error "parser"
-{-
-instance ToJSON Entity where
-    toJSON (Entity offsetEntity' lengthEntity' entityTypeEntity') =
-        object
-        [ "offset" .= offsetEntity'
-        , "length" .= lengthEntity'
-        , "type" .= entityTypeEntity'
-        ]
 
-instance FromJSON Entity where
-    parseJSON (Object v) = Entity
-        <$> v .: "offset"
-        <*> v .: "length"
-        <*> v .: "type"
-    parseJSON _ = error "parser"
--}
 instance ToJSON From where
     toJSON (From fromIDFrom' isBotFrom' firstNameFrom' languageCodeFrom') =
         object

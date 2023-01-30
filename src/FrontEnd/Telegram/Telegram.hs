@@ -115,7 +115,7 @@ data AccountPoll = AccountPoll
 
 data Config = Config
   { confBotToken :: T.Text
-  , confFirstNameBot :: T.Text 
+  -- , confFirstNameBot :: T.Text 
   } deriving (Show, Generic, ToJSON, FromJSON)
 
 -- | initiates a bot handle for ClientM
@@ -288,13 +288,6 @@ sendAccMessage h chatId (EchoBot.MessageResponse (AccountMessagePhoto sphid ) ) 
   return ()
 
 sendAccMessage _ _ _ = return ()
-
-filterOnlyUsers :: Config -> Vector GU.ResultElement -> Vector GU.ResultElement
-filterOnlyUsers conf = V.filter f
-  where
-    f r = fromMaybe False $ do
-      mre <- GU.messageResultElement r
-      return $ confFirstNameBot conf /= GU.firstNameFrom (GU.fromMessage mre)
 
 vResultTovAccountEvent :: Vector GU.ResultElement -> (Map UserId AccountEvent, Map PollId AccountPoll) 
 vResultTovAccountEvent = P.foldl f (M.empty,M.empty)
