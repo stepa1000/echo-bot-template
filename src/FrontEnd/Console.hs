@@ -45,10 +45,6 @@ runLoop' h t = do
         TIO.putStrLn t2
         _ <- (TIO.putStrLn . printMenu) lm
         tn <- TIO.getLine
-        -- let conf = EchoBot.hConfig (hBotHandle h)
-        --lr2 <- EchoBot.respond (hBotHandle h) $ 
-        --  EchoBot.SetRepetitionCountEvent $ 
-        --  either (const $ EchoBot.confRepetitionCount conf) fst $ 
         case T.decimal tn of
           (Right (n,_) ) -> do
             lr2 <- EchoBot.respond (hBotHandle h) $ 

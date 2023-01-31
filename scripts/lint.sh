@@ -13,23 +13,17 @@ cat <<EOF>responseBody.json
 EOF
 cd ..
 cd config
-cat <<EOF>ConfigurationTypes.yaml
-configuration: "Console"
-EOF
-cat <<EOF>EchoBot.yaml
-echobot:
-  confHelpReply: "text for help reply"
-  confRepeatReply: "text for repeat reply"
+cat <<EOF>global.yaml
+confConfigurationTypes: ConsoleFrontEnd
+confEchoBot:
+  confHelpReply: text for HelpReply
+  confRepeatReply: text for RepeatReply
   confRepetitionCount: 3
-EOF
-cat <<EOF>LoggerImp.yaml
-loggerimp:
-  confFileHendler: "./logs/log.text"
-  confMinLevel: "Debug"
-EOF
-cat <<EOF>Telegram.yaml
-tokenbot: "your token"
-namebot: "your bot name"
+confLogger:
+  preconfFilePath: ./logs/log.text
+  preconfMinLevel: Debug
+confTelegram:
+  confBotToken: ''
 EOF
 cd ..
 stack test
