@@ -1,16 +1,20 @@
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 -- | A module to provide a configuration reader for other modules.
 module ConfigBot
-  ( getBotConfig,
-    getLoggerConfig,
-    getFrontEndType,
-    getTelegramConfig
+  ( GlobalConfig (..)
+  , getGlobalConfig
+  , initGlobalConfig
   )
 where
 
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import GHC.Generics
+
+-- import qualified Data.Text as T
+-- import qualified Data.Text.IO as T
 -- import qualified Data.Text.Read as T
-import qualified System.IO as SIO
+-- import qualified System.IO as SIO
 
 import qualified ConfigurationTypes
 import qualified EchoBot
@@ -19,77 +23,34 @@ import qualified Logger
 
 import qualified FrontEnd.Telegram.Telegram as Telegram
 
-import Config as C
+import Data.Yaml
 
--- import Debug.Trace
--- import Data.Ini.Config
+data GlobalConfig = GlobalConfig
+  { confEchoBot :: EchoBot.Config
+  , confLogger :: Logger.Impl.PreConfig
+  , confConfigurationTypes :: ConfigurationTypes.FrontEndType
+  , confTelegram :: Telegram.Config
+  } deriving (Generic, ToJSON, FromJSON)
 
--- | Gets the bot config. In any case it can provide reasonable
--- default values.
-getBotConfig :: IO EchoBot.Config
-getBotConfig = do
-   t <- T.readFile "config/EchoBot.yaml"
-   case parse t >>= parseValue of
-     (Right v) -> return v
-     (Left errorParse) -> error $ show errorParse
-  where
-    parseValue 
-      (Sections _ [ Section _ _ (Sections _ [
-        Section _ _ (C.Text _ t1),
-        Section _ _ (C.Text _ t2),
-        Section _ _ (Number _ n)
-        ] 
-        )
-      ] ) = return $ EchoBot.Config
-        { EchoBot.confHelpReply = t1
-        , EchoBot.confRepeatReply = t2
-        , EchoBot.confRepetitionCount = ceiling $ numberToRational n
-        }
-    parseValue _ = error "parseValue patern matching error"
+getGlobalConfig :: IO GlobalConfig
+getGlobalConfig = decodeFileThrow "config/global.yaml"
+
+initGlobalConfig :: IO ()
+initGlobalConfig = do
+  encodeFile "config/global.yaml" $ GlobalConfig
+    { confEchoBot = EchoBot.Config
+      { EchoBot.confHelpReply = "text for HelpReply"
+      , EchoBot.confRepeatReply = "text for RepeatReply"
+      , EchoBot.confRepetitionCount = 3
+      }
+    , confLogger = Logger.Impl.PreConfig
+      { Logger.Impl.preconfFilePath = "./logs/log.text"
+      , Logger.Impl.preconfMinLevel = Logger.Debug
+      }
+    , confConfigurationTypes = ConfigurationTypes.TelegramFrontEnd
+    , confTelegram = Telegram.Config
+      { Telegram.confBotToken = ""
+      }
+    }
 
 
-getLoggerConfig :: IO Logger.Impl.Config
-getLoggerConfig = do -- error "Not implemented"
-  t <- T.readFile "config/LoggerImp.yaml"
-  case parse t of
-     (Right v) -> parseValue v
-     (Left errorParse) -> error $ show errorParse
-  where
-    parseValue (Sections _ [Section _ _ (Sections _ [
-        Section _ _ (C.Text _ t1) ,
-        Section _ _ (C.Text _ t2)
-        ]
-        )
-      ] ) = do
-        h <- SIO.openBinaryFile (T.unpack t1) SIO.WriteMode
-        return $ Logger.Impl.Config 
-          { Logger.Impl.confFileHandle = h
-          , Logger.Impl.confMinLevel = Logger.textToLogLvl t2
-          } 
-    parseValue _ = error "parseValue patern matching error"
-
- 
-getFrontEndType :: IO ConfigurationTypes.FrontEndType
-getFrontEndType = do -- error "Not implemented"
-  t <- T.readFile "config/ConfigurationTypes.yaml"
-  case parse t of
-     (Right v) -> parseValue v
-     (Left errorParse) -> error $ show errorParse
-  where
-    parseValue (Sections _ [ Section _ _ (C.Text _ t1) ] ) = do
-        return $ ConfigurationTypes.textToFrontEndType t1
-    parseValue _ = error "parseValue patern matching error"
-
-getTelegramConfig :: IO Telegram.Config
-getTelegramConfig = do -- error "Not implemented"
-  t <- T.readFile "config/Telegram.yaml"
-  case parse t of
-     (Right v) -> parseValue v
-     (Left errorParse) -> error $ show errorParse
-  where
-    parseValue (Sections _  [
-          Section _ _ (C.Text _ t1)  ,
-          Section _ _ (C.Text _ t2)  
-          ]) = do
-        return $ Telegram.Config t1 t2
-    parseValue _ = error "parseValue patern matching error"

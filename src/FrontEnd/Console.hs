@@ -28,7 +28,6 @@ run h = do
   -- 1. Read a line from the console.
   -- 2. Send it to the bot, get its response and output it.
   -- 3. Go to 1.
-  -- error "Not implemented"
 
 runLoop :: Handle -> T.Text -> IO ()
 runLoop h t = do
@@ -46,13 +45,15 @@ runLoop' h t = do
         TIO.putStrLn t2
         _ <- (TIO.putStrLn . printMenu) lm
         tn <- TIO.getLine
-        let conf = EchoBot.hConfig (hBotHandle h)
-        lr2 <- EchoBot.respond (hBotHandle h) $ 
-          EchoBot.SetRepetitionCountEvent $ 
-          either (const $ EchoBot.confRepetitionCount conf) fst $ 
-          T.decimal tn
-        mapM_ (TIO.putStrLn . printResponse) lr2 -- !!!!!!!!!!!
-        return True
+        case T.decimal tn of
+          (Right (n,_) ) -> do
+            lr2 <- EchoBot.respond (hBotHandle h) $ 
+              EchoBot.SetRepetitionCountEvent n
+            mapM_ (TIO.putStrLn . printResponse) lr2 
+            return True
+          (Left e) -> do
+            TIO.putStrLn $ T.pack e
+            return True
     ls -> do
        mapM_ (TIO.putStrLn . printResponse) ls
        return True

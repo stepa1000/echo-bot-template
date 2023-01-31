@@ -8,9 +8,9 @@ import Data.Text
 import Data.ByteString.Lazy
 import Data.Vector
 
-data Welcome = Welcome
-    { okWelcome :: Bool
-    , resultWelcome10 :: ResultClass
+data WelcomePhoto = WelcomePhoto
+    { okWelcomePhoto :: Bool
+    , resultWelcomePhoto :: ResultClass
     } deriving (Show)
 
 data ResultClass = ResultClass
@@ -42,18 +42,18 @@ data Photo = Photo
     , heightPhoto :: Int
     } deriving (Show)
 
-decodeTopLevel :: ByteString -> Maybe Welcome
+decodeTopLevel :: ByteString -> Maybe WelcomePhoto
 decodeTopLevel = decode
 
-instance ToJSON Welcome where
-    toJSON (Welcome okWelcome' resultWelcome') =
+instance ToJSON WelcomePhoto where
+    toJSON (WelcomePhoto okWelcome' resultWelcome') =
         object
         [ "ok" .= okWelcome'
         , "result" .= resultWelcome'
         ]
 
-instance FromJSON Welcome where
-    parseJSON (Object v) = Welcome
+instance FromJSON WelcomePhoto where
+    parseJSON (Object v) = WelcomePhoto
         <$> v .: "ok"
         <*> v .: "result"
     parseJSON _ = error "parser error"

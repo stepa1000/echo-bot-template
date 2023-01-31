@@ -11,9 +11,9 @@ import Data.ByteString.Lazy
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-data Welcome9 = Welcome9
-    { okWelcome9 :: Bool
-    , resultWelcome9 :: ResultClass
+data WelcomePoll = WelcomePoll -- 9
+    { okWelcomePoll :: Bool
+    , resultWelcomePoll :: ResultClass
     } deriving (Show)
 
 data ResultClass = ResultClass
@@ -53,18 +53,18 @@ data Option = Option
     , voterCountOption :: Int
     } deriving (Show)
 
-decodeTopLevel :: ByteString -> Maybe Welcome9
+decodeTopLevel :: ByteString -> Maybe WelcomePoll
 decodeTopLevel = decode
 
-instance ToJSON Welcome9 where
-    toJSON (Welcome9 okWelcome9' resultWelcome9') =
+instance ToJSON WelcomePoll where
+    toJSON (WelcomePoll okWelcome9' resultWelcome9') =
         object
         [ "ok" .= okWelcome9'
         , "result" .= resultWelcome9'
         ]
 
-instance FromJSON Welcome9 where
-    parseJSON (Object v) = Welcome9
+instance FromJSON WelcomePoll where
+    parseJSON (Object v) = WelcomePoll
         <$> v .: "ok"
         <*> v .: "result"
     parseJSON _ = error "parser error"

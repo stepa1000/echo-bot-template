@@ -30,33 +30,30 @@ import Text.Show.Pretty
 
 main :: IO ()
 main = do
-  withLogHandle $ \logHandle -> do
-    frontEnd <- ConfigBot.getFrontEndType
-    case frontEnd of
+  gconf <- ConfigBot.getGlobalConfig
+  Logger.Impl.withPreConf (ConfigBot.confLogger gconf) $ \logHandle -> do
+    case ConfigBot.confConfigurationTypes gconf of
       ConfigurationTypes.TelegramFrontEnd -> do
-        --botHandle <- makeBotHandleForTelegram $ 
-        --  Logger.Impl.liftHandleBaseIO logHandle 
-        --telegramConfig <- ConfigBot.getTelegramConfig
-        telegramHandle <- makeBotHandleForTelegram $
+        telegramHandle <- makeBotHandleForTelegram (ConfigBot.confTelegram gconf) (ConfigBot.confEchoBot gconf) $
           Logger.Impl.liftHandleBaseIO logHandle 
-        execClientM $ Telegram.run telegramHandle
+        execClientM (ConfigBot.confTelegram gconf) $ Telegram.run telegramHandle
       ConfigurationTypes.ConsoleFrontEnd -> do
-        botHandle <- makeBotHandleForPlainText logHandle
+        botHandle <- makeBotHandleForPlainText (ConfigBot.confEchoBot gconf) logHandle
         runConsoleFrontEnd botHandle
 
 runConsoleFrontEnd :: EchoBot.Handle IO T.Text -> IO ()
 runConsoleFrontEnd botHandle =
   FrontEnd.Console.run
     FrontEnd.Console.Handle {FrontEnd.Console.hBotHandle = botHandle}
-
+{-
 withLogHandle :: (Logger.Handle IO -> IO ()) -> IO ()
 withLogHandle f = do
   config <- ConfigBot.getLoggerConfig
   Logger.Impl.withHandle config f
-
-execClientM :: ClientM a -> IO a
-execClientM m = do
-  telegramConfig <- ConfigBot.getTelegramConfig
+-}
+execClientM :: Telegram.Config -> ClientM a -> IO a
+execClientM telegramConfig m = do
+  -- telegramConfig <- ConfigBot.getTelegramConfig
   e <- Telegram.clientEnvDefault telegramConfig
   a <- runClientM m e
   case a of
@@ -75,11 +72,13 @@ execClientM m = do
               (ppShow $ js)
     (Left b) -> error (ppShow b)
 
-makeBotHandleForTelegram :: Logger.Handle ClientM 
+makeBotHandleForTelegram :: Telegram.Config
+                         -> EchoBot.Config
+                         -> Logger.Handle ClientM 
                          -> IO (Telegram.Handle ClientM)
-makeBotHandleForTelegram logHandle = do
-  botConfig <- ConfigBot.getBotConfig
-  telegramConfig <- ConfigBot.getTelegramConfig
+makeBotHandleForTelegram telegramConfig botConfig logHandle = do
+  -- botConfig <- ConfigBot.getBotConfig
+  -- telegramConfig <- ConfigBot.getTelegramConfig
   initialState <- either (die . T.unpack) pure $ EchoBot.makeState botConfig
   refAcc <- newIORef $ Telegram.Accounting
     { Telegram.currentAccountId = Telegram.AccountId 
@@ -119,9 +118,8 @@ makeBotHandleForTelegram logHandle = do
 --   another message type which can represent either text or
 --   multimedia messages. You will need to specify different functions
 --   @hMessageFromText@ and @hTextFromMessage@.
-makeBotHandleForPlainText :: Logger.Handle IO -> IO (EchoBot.Handle IO T.Text)
-makeBotHandleForPlainText logHandle = do
-  botConfig <- ConfigBot.getBotConfig
+makeBotHandleForPlainText :: EchoBot.Config -> Logger.Handle IO -> IO (EchoBot.Handle IO T.Text)
+makeBotHandleForPlainText botConfig logHandle = do
   initialState <- either (die . T.unpack) pure $ EchoBot.makeState botConfig
   stateRef <- newIORef initialState
   pure

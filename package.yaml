@@ -25,7 +25,6 @@ dependencies:
 - QuickCheck
 - hspec
 - aeson
-- config-value
 - vector
 - servant
 - servant-client
@@ -36,7 +35,7 @@ dependencies:
 - containers
 - transformers-base
 - pretty-show
-# - config-ini
+- yaml
 
 ghc-options:
 - -Wall
