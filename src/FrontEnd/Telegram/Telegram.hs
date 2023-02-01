@@ -111,7 +111,7 @@ data AccountPoll = AccountPoll
   , accOptionsPoll :: Vector GU.Option
   } deriving Show
 
-data Config = Config
+newtype Config = Config
   { confBotToken :: T.Text
   } deriving (Show, Generic, ToJSON, FromJSON)
 
