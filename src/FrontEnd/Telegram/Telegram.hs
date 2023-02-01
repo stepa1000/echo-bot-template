@@ -28,11 +28,9 @@ import Control.Applicative
 import Control.Monad
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
---import qualified Data.Text.IO as TIO
 import qualified System.IO as SIO
 
 import Data.Yaml
--- import qualified Control.Monad.State.Lazy as SL
 
 import qualified FrontEnd.Telegram.Data.GetUpdate as GU
 import qualified FrontEnd.Telegram.Data.PollMessage as PM
@@ -115,7 +113,6 @@ data AccountPoll = AccountPoll
 
 data Config = Config
   { confBotToken :: T.Text
-  -- , confFirstNameBot :: T.Text 
   } deriving (Show, Generic, ToJSON, FromJSON)
 
 -- | initiates a bot handle for ClientM

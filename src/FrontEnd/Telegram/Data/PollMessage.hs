@@ -11,7 +11,7 @@ import Data.ByteString.Lazy
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-data WelcomePoll = WelcomePoll -- 9
+data WelcomePoll = WelcomePoll
     { okWelcomePoll :: Bool
     , resultWelcomePoll :: ResultClass
     } deriving (Show)

@@ -11,7 +11,6 @@ import Servant.Client
 
 import Data.Text as T
 import Data.Proxy
--- import Data.Vector
 
 import FrontEnd.Telegram.Data.GetUpdate as GU
 import FrontEnd.Telegram.Data.SendMessage as SM

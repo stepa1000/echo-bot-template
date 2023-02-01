@@ -6,11 +6,8 @@ module FrontEnd.Telegram.Data.SendMessage where
 import Data.Aeson
 import Data.Text
 import Data.ByteString.Lazy
--- import Data.Vector
 
--- import FrontEnd.Telegram.Data.GetUpdate
-
-data WelcomeSendMessage = WelcomeSendMessage -- 2
+data WelcomeSendMessage = WelcomeSendMessage
     { okWelcomeSendMesssage :: Bool
     , resultWelcomeSendMessage :: ResultClass
     } deriving (Show)

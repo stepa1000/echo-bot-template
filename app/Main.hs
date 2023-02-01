@@ -11,7 +11,6 @@ import Servant.Client
 
 import qualified Data.Map as M
 
---import qualified Control.Monad.State.Lazy as SL
 import Control.Monad.Base
 
 import qualified ConfigBot
@@ -45,15 +44,9 @@ runConsoleFrontEnd :: EchoBot.Handle IO T.Text -> IO ()
 runConsoleFrontEnd botHandle =
   FrontEnd.Console.run
     FrontEnd.Console.Handle {FrontEnd.Console.hBotHandle = botHandle}
-{-
-withLogHandle :: (Logger.Handle IO -> IO ()) -> IO ()
-withLogHandle f = do
-  config <- ConfigBot.getLoggerConfig
-  Logger.Impl.withHandle config f
--}
+
 execClientM :: Telegram.Config -> ClientM a -> IO a
 execClientM telegramConfig m = do
-  -- telegramConfig <- ConfigBot.getTelegramConfig
   e <- Telegram.clientEnvDefault telegramConfig
   a <- runClientM m e
   case a of
@@ -77,13 +70,11 @@ makeBotHandleForTelegram :: Telegram.Config
                          -> Logger.Handle ClientM 
                          -> IO (Telegram.Handle ClientM)
 makeBotHandleForTelegram telegramConfig botConfig logHandle = do
-  -- botConfig <- ConfigBot.getBotConfig
-  -- telegramConfig <- ConfigBot.getTelegramConfig
   initialState <- either (die . T.unpack) pure $ EchoBot.makeState botConfig
   refAcc <- newIORef $ Telegram.Accounting
     { Telegram.currentAccountId = Telegram.AccountId 
-      { Telegram.accountUserId  = 0 -- 5950752982
-      , Telegram.accountIdChatId = 0 -- 889933266
+      { Telegram.accountUserId  = 0 
+      , Telegram.accountIdChatId = 0 
       }
     , Telegram.currentState = initialState
     , Telegram.currentPollID = Nothing
