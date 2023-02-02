@@ -33,7 +33,16 @@ data GlobalConfig = GlobalConfig
   } deriving (Generic, ToJSON, FromJSON)
 
 getGlobalConfig :: IO GlobalConfig
-getGlobalConfig = decodeFileThrow "config/global.yaml"
+getGlobalConfig = do
+  e <- decodeFileEither "config/global.yaml"
+  case e of
+    (Right gc) -> return gc
+    (Left er) -> g er
+  where
+    g (InvalidYaml (Just (YamlException s)))
+      | s == "Yaml file not found: config/global.yaml" = error s
+    g (AesonException s) = error s
+    g a = error $ show a
 
 initGlobalConfig :: IO ()
 initGlobalConfig = do
