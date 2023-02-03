@@ -32,17 +32,8 @@ data GlobalConfig = GlobalConfig
   , confTelegram :: Telegram.Config
   } deriving (Generic, ToJSON, FromJSON)
 
-getGlobalConfig :: IO GlobalConfig
-getGlobalConfig = do
-  e <- decodeFileEither "config/global.yaml"
-  case e of
-    (Right gc) -> return gc
-    (Left er) -> g er
-  where
-    g (InvalidYaml (Just (YamlException s)))
-      | s == "Yaml file not found: config/global.yaml" = error s
-    g (AesonException s) = error s
-    g a = error $ show a
+getGlobalConfig :: IO (Either ParseException GlobalConfig)
+getGlobalConfig = decodeFileEither "config/global.yaml"
 
 initGlobalConfig :: IO ()
 initGlobalConfig = do
