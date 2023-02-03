@@ -32,8 +32,8 @@ data GlobalConfig = GlobalConfig
   , confTelegram :: Telegram.Config
   } deriving (Generic, ToJSON, FromJSON)
 
-getGlobalConfig :: IO GlobalConfig
-getGlobalConfig = decodeFileThrow "config/global.yaml"
+getGlobalConfig :: IO (Either ParseException GlobalConfig)
+getGlobalConfig = decodeFileEither "config/global.yaml"
 
 initGlobalConfig :: IO ()
 initGlobalConfig = do

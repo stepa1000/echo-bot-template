@@ -29,16 +29,19 @@ import Text.Show.Pretty
 
 main :: IO ()
 main = do
-  gconf <- ConfigBot.getGlobalConfig
-  Logger.Impl.withPreConf (ConfigBot.confLogger gconf) $ \logHandle -> do
-    case ConfigBot.confConfigurationTypes gconf of
-      ConfigurationTypes.TelegramFrontEnd -> do
-        telegramHandle <- makeBotHandleForTelegram (ConfigBot.confTelegram gconf) (ConfigBot.confEchoBot gconf) $
-          Logger.Impl.liftHandleBaseIO logHandle 
-        execClientM (ConfigBot.confTelegram gconf) $ Telegram.run telegramHandle
-      ConfigurationTypes.ConsoleFrontEnd -> do
-        botHandle <- makeBotHandleForPlainText (ConfigBot.confEchoBot gconf) logHandle
-        runConsoleFrontEnd botHandle
+  gconfE <- ConfigBot.getGlobalConfig
+  case gconfE of
+    (Right gconf) -> Logger.Impl.withPreConf (ConfigBot.confLogger gconf) $ \logHandle -> do
+      case ConfigBot.confConfigurationTypes gconf of
+        ConfigurationTypes.TelegramFrontEnd -> do
+          telegramHandle <- makeBotHandleForTelegram (ConfigBot.confTelegram gconf) (ConfigBot.confEchoBot gconf) $
+            Logger.Impl.liftHandleBaseIO logHandle 
+          execClientM (ConfigBot.confTelegram gconf) $ Telegram.run telegramHandle
+        ConfigurationTypes.ConsoleFrontEnd -> do
+          botHandle <- makeBotHandleForPlainText (ConfigBot.confEchoBot gconf) logHandle
+          runConsoleFrontEnd botHandle
+    (Left er) -> do
+      pPrint er
 
 runConsoleFrontEnd :: EchoBot.Handle IO T.Text -> IO ()
 runConsoleFrontEnd botHandle =
