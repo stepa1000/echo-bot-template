@@ -63,4 +63,4 @@ printResponse (EchoBot.MessageResponse t) = t
 printResponse _ = ""
 
 printMenu :: [(EchoBot.RepetitionCount, EchoBot.Event T.Text)] -> T.Text
-printMenu = foldl1 (\t1 t2-> t1 `T.append` "\n" `T.append` t2) . fmap (T.pack . show)
+printMenu = foldl1 (\t1 t2-> t1 `T.append` "\n" `T.append` t2) . fmap (T.pack . ("repeat count: " ++) . show . fst)
