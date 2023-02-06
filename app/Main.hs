@@ -41,7 +41,7 @@ main = do
           botHandle <- makeBotHandleForPlainText (ConfigBot.confEchoBot gconf) logHandle
           runConsoleFrontEnd botHandle
     (Left er) -> do
-      pPrint er
+      putStrLn er
 
 runConsoleFrontEnd :: EchoBot.Handle IO T.Text -> IO ()
 runConsoleFrontEnd botHandle =
