@@ -1,6 +1,6 @@
 .stack-work/
 *~
-/config
+/config/global.yaml
 /logs
 .vscode
 .history

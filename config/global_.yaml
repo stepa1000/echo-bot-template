@@ -1,0 +1,11 @@
+confConfigurationTypes: ConsoleFrontEnd
+#                    or TelegramFrontEnd
+confEchoBot:
+  confHelpReply: text for HelpReply
+  confRepeatReply: text for RepeatReply
+  confRepetitionCount: 3
+confLogger:
+  preconfFilePath: ./logs/log.text
+  preconfMinLevel: Debug
+confTelegram:
+  confBotToken: ""
