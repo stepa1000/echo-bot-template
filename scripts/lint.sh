@@ -12,20 +12,6 @@ EOF
 cat <<EOF>responseBody.json
 EOF
 cd ..
-cd config
-cat <<EOF>global.yaml
-confConfigurationTypes: ConsoleFrontEnd
-confEchoBot:
-  confHelpReply: text for HelpReply
-  confRepeatReply: text for RepeatReply
-  confRepetitionCount: 3
-confLogger:
-  preconfFilePath: ./logs/log.text
-  preconfMinLevel: Debug
-confTelegram:
-  confBotToken: ''
-EOF
-cd ..
 stack test
 stack build
 hlint .
