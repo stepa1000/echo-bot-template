@@ -1,17 +1,16 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 module ConfigurationTypes
   ( FrontEndType (..),
-  textToFrontEndType
+    textToFrontEndType,
   )
 where
 
-import GHC.Generics
-
 import Data.Text as T
-
 import Data.Yaml
+import GHC.Generics
 
 data FrontEndType
   = ConsoleFrontEnd

@@ -1,5 +1,6 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 -- | The pure echo-bot logic module. It doesn't know anything about
 -- Telegram, other chat protocols, or any input/output. This is why we
@@ -9,23 +10,22 @@ module EchoBot
     respond,
     Event (MessageEvent, SetRepetitionCountEvent),
     Response (..),
-    State (..), -- ????
+    State (..),
     Handle (..),
     Config (..),
     RepetitionCount,
-    hasVariableText, -- ???!!! delate the
+    hasVariableText,
   )
 where
-
-import GHC.Generics
 
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Yaml
+import GHC.Generics
 import Logger ((.<))
 import qualified Logger
 
-import Data.Yaml
 -- | The bot dependencies that the caller code should satisfy.
 --
 -- Its @m@ parameter is a monad type where all actions are performed.
@@ -38,42 +38,45 @@ import Data.Yaml
 -- restrictions on the message type, hence the bot can support all
 -- possible message types, while 'hTextFromMessage' and
 -- 'hMessageFromText' are implemented.
-data Handle m a = Handle
-  { hLogHandle :: Logger.Handle m,
-    hConfig :: Config,
-    -- | Returns the current 'State'.
-    hGetState :: m State,
-    -- | Updates the current state with applying the given function.
-    -- You may find it similar to the 'modify'` method of the 'State'
-    -- monad, as well as 'hGetState' is similar to 'get'.
-    hModifyState' :: (State -> State) -> m (),
-    -- | Returns @Just text@ for a pure text message, so that the bot
-    -- could try to parse it as a command. Otherwise it returns
-    -- 'Nothing'.
-    hTextFromMessage :: a -> Maybe T.Text,
-    -- | Constructs a message from a pure text. The bot can use it for
-    -- creating a help text message.
-    --
-    -- Note that instead of adding 'hTextFromMessage' and
-    -- 'hMessageFromText' into 'Handle', we might make them into
-    -- methods of @Message@ type class. These two variants are very
-    -- similar for our goals.
-    hMessageFromText :: T.Text -> a
-  }
+data Handle m a
+  = Handle
+      { hLogHandle :: Logger.Handle m,
+        hConfig :: Config,
+        -- | Returns the current 'State'.
+        hGetState :: m State,
+        -- | Updates the current state with applying the given function.
+        -- You may find it similar to the 'modify'` method of the 'State'
+        -- monad, as well as 'hGetState' is similar to 'get'.
+        hModifyState' :: (State -> State) -> m (),
+        -- | Returns @Just text@ for a pure text message, so that the bot
+        -- could try to parse it as a command. Otherwise it returns
+        -- 'Nothing'.
+        hTextFromMessage :: a -> Maybe T.Text,
+        -- | Constructs a message from a pure text. The bot can use it for
+        -- creating a help text message.
+        --
+        -- Note that instead of adding 'hTextFromMessage' and
+        -- 'hMessageFromText' into 'Handle', we might make them into
+        -- methods of @Message@ type class. These two variants are very
+        -- similar for our goals.
+        hMessageFromText :: T.Text -> a
+      }
 
 -- | The initial configuration of the bot.
-data Config = Config
-  { -- | A reply to the @help@ command
-    confHelpReply :: Text,
-    -- | A reply to the @repeat@ command. The string of @{count}@ in
-    -- the text will be replaced with the current repetition count, so
-    -- that you can use a template string like @"The new repetition
-    -- count is {count}."@.
-    confRepeatReply :: Text,
-    -- | The initial repetition count for echoing messages to start
-    -- with.
-    confRepetitionCount :: Int
-  } deriving (Show, Generic, ToJSON, FromJSON)
+data Config
+  = Config
+      { -- | A reply to the @help@ command
+        confHelpReply :: Text,
+        -- | A reply to the @repeat@ command. The string of @{count}@ in
+        -- the text will be replaced with the current repetition count, so
+        -- that you can use a template string like @"The new repetition
+        -- count is {count}."@.
+        confRepeatReply :: Text,
+        -- | The initial repetition count for echoing messages to start
+        -- with.
+        confRepetitionCount :: Int
+      }
+  deriving (Show, Generic, ToJSON, FromJSON)
 
 -- | An external event that the bot should process and respond to.
 -- It's parameterized with a message type.
@@ -110,19 +113,21 @@ type RepetitionCount = Int
 -- keep the number of repetitions for a single user. Let the caller
 -- code be responsible for tracking multiple users and states for
 -- their bots.
-newtype State = State
-  { stRepetitionCount :: RepetitionCount
-  -- , stRepetitionMessageText :: Maybe T.Text
-  } deriving Show
+newtype State
+  = State
+      { stRepetitionCount :: RepetitionCount
+        -- , stRepetitionMessageText :: Maybe T.Text
+      }
+  deriving (Show)
 
 -- | Creates an initial, default bot state for a user.
 makeState :: Config -> Either Text State
 makeState conf = do
   checkConfig conf
-  pure $ State 
-    { stRepetitionCount = confRepetitionCount conf
-    -- , stRepetitionMessageText = Just $ confRepeatReply conf 
-    }
+  pure $
+    State
+      { stRepetitionCount = confRepetitionCount conf
+      }
 
 checkConfig :: Config -> Either Text ()
 checkConfig conf =
@@ -142,30 +147,25 @@ respond h (MessageEvent message)
 isCommand :: Handle m a -> T.Text -> a -> Bool
 isCommand h t message = case hTextFromMessage h message of
   Nothing -> False
-  Just t2 -> t == t2 
-{- case (uncons t) of
-    (Just '/',_) -> True  --  error "Not implemented"
-    _ -> False -}
+  Just t2 -> t == t2
 
 handleHelpCommand :: Monad m => Handle m a -> m [Response a]
 handleHelpCommand h = do
   Logger.logInfo (hLogHandle h) "Got the help command"
   let conf = hConfig h
-  -- st <- (hGetState h)
-  -- let count = stRepetitionCount st
   return [MessageResponse $ hMessageFromText h $ confHelpReply conf]
--- error "Not implemented"
 
 handleSettingRepetitionCount :: Monad m => Handle m a -> Int -> m [Response a]
 handleSettingRepetitionCount h count | count > 0 && count <= 5 = do
   Logger.logInfo (hLogHandle h) $ "The user has set the repetition count to " .< count
-  hModifyState' h (\s->s {stRepetitionCount = count} )
-  return [MessageResponse $ hMessageFromText h $ "The user has set the repetition count to " .< count ]
-  -- error "Not implemented"
+  hModifyState' h (\s -> s {stRepetitionCount = count})
+  return [MessageResponse $ hMessageFromText h $ "The user has set the repetition count to " .< count]
 handleSettingRepetitionCount h count = do
-  Logger.logInfo (hLogHandle h) $ 
-    ("The user has set the repetition count to " .< 
-    count) `T.append` ", but dont apply, becouse count mast be > 0 and <= 5 "
+  Logger.logInfo (hLogHandle h) $
+    ( "The user has set the repetition count to "
+        .< count
+    )
+      `T.append` ", but dont apply, becouse count mast be > 0 and <= 5 "
   return [MessageResponse $ hMessageFromText h "Repetition count must be > 0 and <= 5"]
 
 handleRepeatCommand :: Monad m => Handle m a -> m [Response a]
@@ -173,20 +173,20 @@ handleRepeatCommand h = do
   Logger.logInfo (hLogHandle h) "Got the repeat command"
   st <- hGetState h
   let conf = hConfig h
-  return [
-      MenuResponse (hasVariableText "count" (T.pack $ show $ stRepetitionCount st) $ confRepeatReply conf)
-        [(i, SetRepetitionCountEvent i) | i <- [1..5]]
+  return
+    [ MenuResponse
+        (hasVariableText "count" (T.pack $ show $ stRepetitionCount st) $ confRepeatReply conf)
+        [(i, SetRepetitionCountEvent i) | i <- [1 .. 5]]
     ]
---error "Not implemented"
 
 -- | find variables and repelace specified
 --                   var    specified   text
 hasVariableText :: T.Text -> T.Text -> T.Text -> T.Text
 hasVariableText tv tn t = fromMaybe t $ do
-    iv <- miv
-    if tv == T.take lv (T.drop (iv+1) t)
-      then Just $ T.take iv t `T.append` tn `T.append` T.drop (iv + lv + 2) t
-      else Nothing -- Just $ (T.take lv $ T.drop iv t)
+  iv <- miv
+  if tv == T.take lv (T.drop (iv + 1) t)
+    then Just $ T.take iv t `T.append` tn `T.append` T.drop (iv + lv + 2) t
+    else Nothing -- Just $ (T.take lv $ T.drop iv t)
   where
     miv = T.findIndex ('{' ==) t
     lv = T.length tv
@@ -197,8 +197,4 @@ respondWithEchoedMessage h message = do
     "Echoing user input: " .< fromMaybe "<multimedia?>" (hTextFromMessage h message)
   st <- hGetState h
   let count = stRepetitionCount st
-  -- let mMessageT = stRepetitionMessageText st
-  -- let conf = (hConfig h)
-  -- case mMessageT of -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  return $ replicate count (MessageResponse message) 
-  -- error "Not implemented"
+  return $ replicate count (MessageResponse message)
