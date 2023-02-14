@@ -186,7 +186,7 @@ hasVariableText tv tn t = fromMaybe t $ do
   iv <- miv
   if tv == T.take lv (T.drop (iv + 1) t)
     then Just $ T.take iv t `T.append` tn `T.append` T.drop (iv + lv + 2) t
-    else Nothing -- Just $ (T.take lv $ T.drop iv t)
+    else Nothing
   where
     miv = T.findIndex ('{' ==) t
     lv = T.length tv
