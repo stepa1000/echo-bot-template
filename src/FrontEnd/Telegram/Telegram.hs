@@ -111,7 +111,7 @@ data AccountPoll
       { accountUpdateIDPoll :: Int,
         accountIdPoll :: T.Text,
         accTotalVoterPoll :: Int,
-        accOptionsPoll :: Vector GU.Option
+        accOptionsPoll :: Vector GU.OptionPoll
       }
   deriving (Show)
 
