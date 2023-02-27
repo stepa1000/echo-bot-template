@@ -8,10 +8,10 @@ import Data.ByteString.Lazy
 import Data.Text
 import Data.Vector
 
-data WelcomeUpdate
-  = WelcomeUpdate
-      { okWelcomeUpdate :: Bool,
-        resultWelcomeUpdate :: Vector ResultElement
+data ResponseUpdate
+  = ResponseUpdate
+      { okResponeUpdate :: Bool,
+        resultResponseUpdate :: Vector ResultElement
       }
   deriving (Show)
 
@@ -25,20 +25,20 @@ data ResultElement
 
 data Message
   = Message
-      { fromMessage :: From,
-        chatMessage :: Chat,
+      { fromMessage :: FromMessage,
+        chatMessage :: ChatMessage,
         messageTextMessage :: Maybe Text,
         photoMessage :: Maybe (Vector Photo)
       }
   deriving (Show)
 
-data Chat
+data ChatMessage
   = Chat
       { chatIDChat :: Int
       }
   deriving (Show)
 
-data From
+data FromMessage
   = From
       { fromIDFrom :: Int
       }
@@ -53,31 +53,31 @@ data Photo
 data Poll
   = Poll
       { pollIDPoll :: Text,
-        optionsPoll :: Vector Option,
+        optionsPoll :: Vector OptionPoll,
         totalVoterCountPoll :: Int
       }
   deriving (Show)
 
-data Option
+data OptionPoll
   = Option
       { optionTextOption :: Text,
         voterCountOption :: Int
       }
   deriving (Show)
 
-decodeTopLevel :: ByteString -> Maybe WelcomeUpdate
+decodeTopLevel :: ByteString -> Maybe ResponseUpdate
 decodeTopLevel = decode
 
-instance ToJSON WelcomeUpdate where
-  toJSON (WelcomeUpdate okWelcome10' resultWelcome10') =
+instance ToJSON ResponseUpdate where
+  toJSON (ResponseUpdate okResponse' resultResponse') =
     object
-      [ "ok" .= okWelcome10',
-        "result" .= resultWelcome10'
+      [ "ok" .= okResponse',
+        "result" .= resultResponse'
       ]
 
-instance FromJSON WelcomeUpdate where
+instance FromJSON ResponseUpdate where
   parseJSON (Object v) =
-    WelcomeUpdate
+    ResponseUpdate
       <$> v .: "ok"
       <*> v .: "result"
   parseJSON _ = error "parser"
@@ -116,25 +116,25 @@ instance FromJSON Message where
       <*> v .:? "photo"
   parseJSON _ = error "parser"
 
-instance ToJSON Chat where
+instance ToJSON ChatMessage where
   toJSON (Chat chatIDChat') =
     object
       [ "id" .= chatIDChat'
       ]
 
-instance FromJSON Chat where
+instance FromJSON ChatMessage where
   parseJSON (Object v) =
     Chat
       <$> v .: "id"
   parseJSON _ = error "parser"
 
-instance ToJSON From where
+instance ToJSON FromMessage where
   toJSON (From fromIDFrom') =
     object
       [ "id" .= fromIDFrom'
       ]
 
-instance FromJSON From where
+instance FromJSON FromMessage where
   parseJSON (Object v) =
     From
       <$> v .: "id"
@@ -168,14 +168,14 @@ instance FromJSON Poll where
       <*> v .: "total_voter_count"
   parseJSON _ = error "parser"
 
-instance ToJSON Option where
+instance ToJSON OptionPoll where
   toJSON (Option optionTextOption' voterCountOption') =
     object
       [ "text" .= optionTextOption',
         "voter_count" .= voterCountOption'
       ]
 
-instance FromJSON Option where
+instance FromJSON OptionPoll where
   parseJSON (Object v) =
     Option
       <$> v .: "text"

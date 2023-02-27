@@ -111,7 +111,7 @@ data AccountPoll
       { accountUpdateIDPoll :: Int,
         accountIdPoll :: T.Text,
         accTotalVoterPoll :: Int,
-        accOptionsPoll :: Vector GU.Option
+        accOptionsPoll :: Vector GU.OptionPoll
       }
   deriving (Show)
 
@@ -172,14 +172,14 @@ hGetUpdates h = do
   Logger.logDebug (logHandle h) $ "Current last update " .< mlastUp
   case mlastUp of
     (Just lUp) -> do
-      (GU.WelcomeUpdate _ vUp) <- hLiftClientM h $ API.getUpdates (Just (lUp + 1))
+      (GU.ResponseUpdate _ vUp) <- hLiftClientM h $ API.getUpdates (Just (lUp + 1))
       Logger.logDebug (logHandle h) $ "Last result vector length " .< V.length vUp
       Logger.logDebug (logHandle h) $ "Filtered result vector length " .< V.length (filterUpdate lUp vUp)
       Logger.logDebug (logHandle h) $ "Vector IDUpdates " .< fmap GU.updateIDResultElement vUp
       hSetLastUpdate h (Just $ max (getNewLastUpdate vUp) lUp)
       return $ filterUpdate lUp vUp
     _ -> do
-      (GU.WelcomeUpdate _ vUp) <- hLiftClientM h $ API.getUpdates Nothing
+      (GU.ResponseUpdate _ vUp) <- hLiftClientM h $ API.getUpdates Nothing
       Logger.logDebug (logHandle h) $ "Last result vector length " .< V.length vUp
       hSetLastUpdate h (Just $ getNewLastUpdate vUp)
       return vUp
@@ -285,7 +285,7 @@ updateAccountMessage h chatId x = do
   lr <- EchoBot.respond (handleEchoBot h) (EchoBot.MessageEvent x)
   case lr of
     ((EchoBot.MenuResponse t lre) : _) -> do
-      (PM.WelcomePoll _ r) <-
+      (PM.ResponsePoll _ r) <-
         hLiftClientM h $
           API.sendPoll
             (Just chatId)
