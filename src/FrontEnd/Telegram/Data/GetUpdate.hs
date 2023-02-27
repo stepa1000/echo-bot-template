@@ -8,61 +8,53 @@ import Data.ByteString.Lazy
 import Data.Text
 import Data.Vector
 
-data ResponseUpdate
-  = ResponseUpdate
-      { okResponeUpdate :: Bool,
-        resultResponseUpdate :: Vector ResultElement
-      }
+data ResponseUpdate = ResponseUpdate
+  { okResponeUpdate :: Bool,
+    resultResponseUpdate :: Vector ResultElement
+  }
   deriving (Show)
 
-data ResultElement
-  = ResultElement
-      { updateIDResultElement :: Int,
-        messageResultElement :: Maybe Message,
-        pollResultElement :: Maybe Poll
-      }
+data ResultElement = ResultElement
+  { updateIDResultElement :: Int,
+    messageResultElement :: Maybe Message,
+    pollResultElement :: Maybe Poll
+  }
   deriving (Show)
 
-data Message
-  = Message
-      { fromMessage :: FromMessage,
-        chatMessage :: ChatMessage,
-        messageTextMessage :: Maybe Text,
-        photoMessage :: Maybe (Vector Photo)
-      }
+data Message = Message
+  { fromMessage :: FromMessage,
+    chatMessage :: ChatMessage,
+    messageTextMessage :: Maybe Text,
+    photoMessage :: Maybe (Vector Photo)
+  }
   deriving (Show)
 
-data ChatMessage
-  = Chat
-      { chatIDChat :: Int
-      }
+data ChatMessage = Chat
+  { chatIDChat :: Int
+  }
   deriving (Show)
 
-data FromMessage
-  = From
-      { fromIDFrom :: Int
-      }
+data FromMessage = From
+  { fromIDFrom :: Int
+  }
   deriving (Show)
 
-data Photo
-  = Photo
-      { fileIDPhoto :: Text
-      }
+data Photo = Photo
+  { fileIDPhoto :: Text
+  }
   deriving (Show)
 
-data Poll
-  = Poll
-      { pollIDPoll :: Text,
-        optionsPoll :: Vector OptionPoll,
-        totalVoterCountPoll :: Int
-      }
+data Poll = Poll
+  { pollIDPoll :: Text,
+    optionsPoll :: Vector OptionPoll,
+    totalVoterCountPoll :: Int
+  }
   deriving (Show)
 
-data OptionPoll
-  = Option
-      { optionTextOption :: Text,
-        voterCountOption :: Int
-      }
+data OptionPoll = Option
+  { optionTextOption :: Text,
+    voterCountOption :: Int
+  }
   deriving (Show)
 
 decodeTopLevel :: ByteString -> Maybe ResponseUpdate
@@ -78,8 +70,10 @@ instance ToJSON ResponseUpdate where
 instance FromJSON ResponseUpdate where
   parseJSON (Object v) =
     ResponseUpdate
-      <$> v .: "ok"
-      <*> v .: "result"
+      <$> v
+      .: "ok"
+      <*> v
+      .: "result"
   parseJSON _ = error "parser"
 
 instance ToJSON ResultElement where
@@ -93,9 +87,12 @@ instance ToJSON ResultElement where
 instance FromJSON ResultElement where
   parseJSON (Object v) =
     ResultElement
-      <$> v .: "update_id"
-      <*> v .:? "message"
-      <*> v .:? "poll"
+      <$> v
+      .: "update_id"
+      <*> v
+      .:? "message"
+      <*> v
+      .:? "poll"
   parseJSON _ = error "parser"
 
 instance ToJSON Message where
@@ -110,10 +107,14 @@ instance ToJSON Message where
 instance FromJSON Message where
   parseJSON (Object v) =
     Message
-      <$> v .: "from"
-      <*> v .: "chat"
-      <*> v .:? "text"
-      <*> v .:? "photo"
+      <$> v
+      .: "from"
+      <*> v
+      .: "chat"
+      <*> v
+      .:? "text"
+      <*> v
+      .:? "photo"
   parseJSON _ = error "parser"
 
 instance ToJSON ChatMessage where
@@ -125,7 +126,8 @@ instance ToJSON ChatMessage where
 instance FromJSON ChatMessage where
   parseJSON (Object v) =
     Chat
-      <$> v .: "id"
+      <$> v
+      .: "id"
   parseJSON _ = error "parser"
 
 instance ToJSON FromMessage where
@@ -137,7 +139,8 @@ instance ToJSON FromMessage where
 instance FromJSON FromMessage where
   parseJSON (Object v) =
     From
-      <$> v .: "id"
+      <$> v
+      .: "id"
   parseJSON _ = error "parser"
 
 instance ToJSON Photo where
@@ -149,7 +152,8 @@ instance ToJSON Photo where
 instance FromJSON Photo where
   parseJSON (Object v) =
     Photo
-      <$> v .: "file_id"
+      <$> v
+      .: "file_id"
   parseJSON _ = error "parser"
 
 instance ToJSON Poll where
@@ -163,9 +167,12 @@ instance ToJSON Poll where
 instance FromJSON Poll where
   parseJSON (Object v) =
     Poll
-      <$> v .: "id"
-      <*> v .: "options"
-      <*> v .: "total_voter_count"
+      <$> v
+      .: "id"
+      <*> v
+      .: "options"
+      <*> v
+      .: "total_voter_count"
   parseJSON _ = error "parser"
 
 instance ToJSON OptionPoll where
@@ -178,6 +185,8 @@ instance ToJSON OptionPoll where
 instance FromJSON OptionPoll where
   parseJSON (Object v) =
     Option
-      <$> v .: "text"
-      <*> v .: "voter_count"
+      <$> v
+      .: "text"
+      <*> v
+      .: "voter_count"
   parseJSON _ = error "parser"

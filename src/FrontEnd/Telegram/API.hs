@@ -25,13 +25,16 @@ instance ToHttpApiData ListText where
 
 type TelegramAPI =
   "getUpdates" :> QueryParam "offset" Int :> Get '[JSON] GU.ResponseUpdate
-    :<|> "sendMessage" :> QueryParam "chat_id" Int
+    :<|> "sendMessage"
+      :> QueryParam "chat_id" Int
       :> QueryParam "text" T.Text
       :> Get '[JSON] SM.ResponseSendMessage
-    :<|> "sendPhoto" :> QueryParam "chat_id" Int
+    :<|> "sendPhoto"
+      :> QueryParam "chat_id" Int
       :> QueryParam "photo" T.Text
       :> Get '[JSON] SP.ResponsePhoto
-    :<|> "sendPoll" :> QueryParam "chat_id" Int
+    :<|> "sendPoll"
+      :> QueryParam "chat_id" Int
       :> QueryParam "question" T.Text
       :> QueryParam "options" ListText
       :> Get '[JSON] PM.ResponsePoll
@@ -40,11 +43,7 @@ telegramAPI :: Proxy TelegramAPI
 telegramAPI = Proxy
 
 getUpdates :: Maybe Int -> ClientM GU.ResponseUpdate
-
 sendMessage :: Maybe Int -> Maybe T.Text -> ClientM SM.ResponseSendMessage
-
 sendPhoto :: Maybe Int -> Maybe T.Text -> ClientM SP.ResponsePhoto
-
 sendPoll :: Maybe Int -> Maybe T.Text -> Maybe ListText -> ClientM PM.ResponsePoll
-
 getUpdates :<|> sendMessage :<|> sendPhoto :<|> sendPoll = client telegramAPI
