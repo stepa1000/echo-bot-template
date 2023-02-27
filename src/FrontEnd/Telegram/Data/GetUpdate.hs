@@ -8,10 +8,10 @@ import Data.ByteString.Lazy
 import Data.Text
 import Data.Vector
 
-data WelcomeUpdate
-  = WelcomeUpdate
-      { okWelcomeUpdate :: Bool,
-        resultWelcomeUpdate :: Vector ResultElement
+data ResponseUpdate
+  = ResponseUpdate
+      { okResponeUpdate :: Bool,
+        resultResponseUpdate :: Vector ResultElement
       }
   deriving (Show)
 
@@ -65,19 +65,19 @@ data OptionPoll
       }
   deriving (Show)
 
-decodeTopLevel :: ByteString -> Maybe WelcomeUpdate
+decodeTopLevel :: ByteString -> Maybe ResponseUpdate
 decodeTopLevel = decode
 
-instance ToJSON WelcomeUpdate where
-  toJSON (WelcomeUpdate okWelcome10' resultWelcome10') =
+instance ToJSON ResponseUpdate where
+  toJSON (ResponseUpdate okResponse' resultResponse') =
     object
-      [ "ok" .= okWelcome10',
-        "result" .= resultWelcome10'
+      [ "ok" .= okResponse',
+        "result" .= resultResponse'
       ]
 
-instance FromJSON WelcomeUpdate where
+instance FromJSON ResponseUpdate where
   parseJSON (Object v) =
-    WelcomeUpdate
+    ResponseUpdate
       <$> v .: "ok"
       <*> v .: "result"
   parseJSON _ = error "parser"

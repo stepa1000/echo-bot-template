@@ -6,23 +6,23 @@ module FrontEnd.Telegram.Data.SendPhoto where
 import Data.Aeson
 import Data.ByteString.Lazy
 
-data WelcomePhoto
-  = WelcomePhoto
-      { okWelcomePhoto :: Bool
+data ResponsePhoto
+  = ResponsePhoto
+      { okResponsePhoto :: Bool
       }
   deriving (Show)
 
-decodeTopLevel :: ByteString -> Maybe WelcomePhoto
+decodeTopLevel :: ByteString -> Maybe ResponsePhoto
 decodeTopLevel = decode
 
-instance ToJSON WelcomePhoto where
-  toJSON (WelcomePhoto okWelcome') =
+instance ToJSON ResponsePhoto where
+  toJSON (ResponsePhoto okResponse') =
     object
-      [ "ok" .= okWelcome'
+      [ "ok" .= okResponse'
       ]
 
-instance FromJSON WelcomePhoto where
+instance FromJSON ResponsePhoto where
   parseJSON (Object v) =
-    WelcomePhoto
+    ResponsePhoto
       <$> v .: "ok"
   parseJSON _ = error "parser error"

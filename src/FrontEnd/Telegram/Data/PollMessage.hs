@@ -7,10 +7,10 @@ import Data.Aeson
 import Data.ByteString.Lazy
 import Data.Text
 
-data WelcomePoll
-  = WelcomePoll
-      { okWelcomePoll :: Bool,
-        resultWelcomePoll :: ResultClass
+data ResponsePoll
+  = ResponsePoll
+      { okResponsePoll :: Bool,
+        resultResponsePoll :: ResultClass
       }
   deriving (Show)
 
@@ -26,19 +26,19 @@ data Poll
       }
   deriving (Show)
 
-decodeTopLevel :: ByteString -> Maybe WelcomePoll
+decodeTopLevel :: ByteString -> Maybe ResponsePoll
 decodeTopLevel = decode
 
-instance ToJSON WelcomePoll where
-  toJSON (WelcomePoll okWelcome9' resultWelcome9') =
+instance ToJSON ResponsePoll where
+  toJSON (ResponsePoll okResponse' resultResponse') =
     object
-      [ "ok" .= okWelcome9',
-        "result" .= resultWelcome9'
+      [ "ok" .= okResponse',
+        "result" .= resultResponse'
       ]
 
-instance FromJSON WelcomePoll where
+instance FromJSON ResponsePoll where
   parseJSON (Object v) =
-    WelcomePoll
+    ResponsePoll
       <$> v .: "ok"
       <*> v .: "result"
   parseJSON _ = error "parser error"

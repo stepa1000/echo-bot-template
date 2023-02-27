@@ -24,26 +24,27 @@ instance ToHttpApiData ListText where
       f _ = ""
 
 type TelegramAPI =
-  "getUpdates" :> QueryParam "offset" Int :> Get '[JSON] GU.WelcomeUpdate
+  "getUpdates" :> QueryParam "offset" Int :> Get '[JSON] GU.ResponseUpdate
     :<|> "sendMessage" :> QueryParam "chat_id" Int
       :> QueryParam "text" T.Text
-      :> Get '[JSON] SM.WelcomeSendMessage
+      :> Get '[JSON] SM.ResponseSendMessage
     :<|> "sendPhoto" :> QueryParam "chat_id" Int
       :> QueryParam "photo" T.Text
-      :> Get '[JSON] SP.WelcomePhoto
+      :> Get '[JSON] SP.ResponsePhoto
     :<|> "sendPoll" :> QueryParam "chat_id" Int
       :> QueryParam "question" T.Text
       :> QueryParam "options" ListText
-      :> Get '[JSON] PM.WelcomePoll
+      :> Get '[JSON] PM.ResponsePoll
 
 telegramAPI :: Proxy TelegramAPI
 telegramAPI = Proxy
 
-getUpdates :: Maybe Int -> ClientM GU.WelcomeUpdate
+getUpdates :: Maybe Int -> ClientM GU.ResponseUpdate
 
-sendMessage :: Maybe Int -> Maybe T.Text -> ClientM SM.WelcomeSendMessage
+sendMessage :: Maybe Int -> Maybe T.Text -> ClientM SM.ResponseSendMessage
 
-sendPhoto :: Maybe Int -> Maybe T.Text -> ClientM SP.WelcomePhoto
+sendPhoto :: Maybe Int -> Maybe T.Text -> ClientM SP.ResponsePhoto
 
-sendPoll :: Maybe Int -> Maybe T.Text -> Maybe ListText -> ClientM PM.WelcomePoll
+sendPoll :: Maybe Int -> Maybe T.Text -> Maybe ListText -> ClientM PM.ResponsePoll
+
 getUpdates :<|> sendMessage :<|> sendPhoto :<|> sendPoll = client telegramAPI
