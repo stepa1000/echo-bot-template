@@ -25,29 +25,28 @@ import qualified FrontEnd.Telegram.API as API
 import qualified FrontEnd.Telegram.Data.GetUpdate as GU
 import qualified FrontEnd.Telegram.Data.PollMessage as PM
 import GHC.Generics
-import qualified Logger
 import Logger ((.<))
+import qualified Logger
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Servant.Client
 import qualified System.IO as SIO
 import Prelude as P
 
-data Handle m
-  = Handle
-      { hConfigTelegramBot :: Config,
-        -- | Returns the last upadate count
-        hGetLastUpdate :: m (Maybe Int),
-        -- | Set the last update count
-        hSetLastUpdate :: Maybe Int -> m (),
-        -- | Returns the Accounting
-        hGetAccounting :: m Accounting,
-        -- | Modify the Accounting
-        hModifyAccounting :: (Accounting -> Accounting) -> m (),
-        -- | Lift for ClientM Monad
-        hLiftClientM :: forall a. ClientM a -> m a,
-        handleEchoBot :: EchoBot.Handle m AccountMessage
-      }
+data Handle m = Handle
+  { hConfigTelegramBot :: Config,
+    -- | Returns the last upadate count
+    hGetLastUpdate :: m (Maybe Int),
+    -- | Set the last update count
+    hSetLastUpdate :: Maybe Int -> m (),
+    -- | Returns the Accounting
+    hGetAccounting :: m Accounting,
+    -- | Modify the Accounting
+    hModifyAccounting :: (Accounting -> Accounting) -> m (),
+    -- | Lift for ClientM Monad
+    hLiftClientM :: forall a. ClientM a -> m a,
+    handleEchoBot :: EchoBot.Handle m AccountMessage
+  }
 
 logHandle :: Handle m -> Logger.Handle m
 logHandle = EchoBot.hLogHandle . handleEchoBot
@@ -58,31 +57,28 @@ type ChatId = Int
 
 type PollId = T.Text
 
-data Accounting
-  = Accounting
-      { -- | Current identifier for chat and user
-        currentAccountId :: AccountId,
-        currentState :: EchoBot.State,
-        -- | Current identifer for polls for single user
-        currentPollID :: Maybe PollId,
-        mapState :: Map UserId AccountState
-      }
+data Accounting = Accounting
+  { -- | Current identifier for chat and user
+    currentAccountId :: AccountId,
+    currentState :: EchoBot.State,
+    -- | Current identifer for polls for single user
+    currentPollID :: Maybe PollId,
+    mapState :: Map UserId AccountState
+  }
 
 -- | State for one account
-data AccountState
-  = AccountState
-      { -- | Identifier for chat and user
-        accountId :: AccountId,
-        accountState :: EchoBot.State,
-        -- | Identifer for polls for single user
-        accountPollId :: Maybe PollId
-      }
+data AccountState = AccountState
+  { -- | Identifier for chat and user
+    accountId :: AccountId,
+    accountState :: EchoBot.State,
+    -- | Identifer for polls for single user
+    accountPollId :: Maybe PollId
+  }
 
-data AccountId
-  = AccountId
-      { accountUserId :: UserId,
-        accountIdChatId :: ChatId
-      }
+data AccountId = AccountId
+  { accountUserId :: UserId,
+    accountIdChatId :: ChatId
+  }
   deriving (Eq)
 
 data AccountMessage
@@ -100,25 +96,22 @@ accountMessageToText _ = Nothing
 textToAccountMessage :: T.Text -> AccountMessage
 textToAccountMessage = AccountMessage
 
-data AccountEvent
-  = AccountEvent
-      { accountChatId :: ChatId,
-        accountMessages :: Vector AccountMessage
-      }
+data AccountEvent = AccountEvent
+  { accountChatId :: ChatId,
+    accountMessages :: Vector AccountMessage
+  }
 
-data AccountPoll
-  = AccountPoll
-      { accountUpdateIDPoll :: Int,
-        accountIdPoll :: T.Text,
-        accTotalVoterPoll :: Int,
-        accOptionsPoll :: Vector GU.Option
-      }
+data AccountPoll = AccountPoll
+  { accountUpdateIDPoll :: Int,
+    accountIdPoll :: T.Text,
+    accTotalVoterPoll :: Int,
+    accOptionsPoll :: Vector GU.Option
+  }
   deriving (Show)
 
-newtype Config
-  = Config
-      { confBotToken :: T.Text
-      }
+newtype Config = Config
+  { confBotToken :: T.Text
+  }
   deriving (Show, Generic, ToJSON, FromJSON)
 
 -- | initiates a bot handle for ClientM
@@ -222,10 +215,10 @@ updatePoll h n mapNAP ast = do
         r <-
           EchoBot.respond
             (handleEchoBot h)
-            ( EchoBot.SetRepetitionCountEvent
-                $ either (const (EchoBot.stRepetitionCount $ accountState ast)) fst
-                $ T.decimal
-                $ GU.optionTextOption mO
+            ( EchoBot.SetRepetitionCountEvent $
+                either (const (EchoBot.stRepetitionCount $ accountState ast)) fst $
+                  T.decimal $
+                    GU.optionTextOption mO
             )
         P.mapM_ (sendAccMessage h (accountIdChatId $ accountId ast)) r
         hModifyAccounting h (\s -> s {currentPollID = Nothing})

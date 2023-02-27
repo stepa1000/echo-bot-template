@@ -18,13 +18,12 @@ import GHC.Generics
 import qualified Logger
 import qualified Logger.Impl
 
-data GlobalConfig
-  = GlobalConfig
-      { confEchoBot :: EchoBot.Config,
-        confLogger :: Logger.Impl.PreConfig,
-        confConfigurationTypes :: ConfigurationTypes.FrontEndType,
-        confTelegram :: Telegram.Config
-      }
+data GlobalConfig = GlobalConfig
+  { confEchoBot :: EchoBot.Config,
+    confLogger :: Logger.Impl.PreConfig,
+    confConfigurationTypes :: ConfigurationTypes.FrontEndType,
+    confTelegram :: Telegram.Config
+  }
   deriving (Generic, ToJSON, FromJSON)
 
 getGlobalConfig :: IO (Either String GlobalConfig)

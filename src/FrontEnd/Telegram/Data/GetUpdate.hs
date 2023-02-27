@@ -8,61 +8,53 @@ import Data.ByteString.Lazy
 import Data.Text
 import Data.Vector
 
-data WelcomeUpdate
-  = WelcomeUpdate
-      { okWelcomeUpdate :: Bool,
-        resultWelcomeUpdate :: Vector ResultElement
-      }
+data WelcomeUpdate = WelcomeUpdate
+  { okWelcomeUpdate :: Bool,
+    resultWelcomeUpdate :: Vector ResultElement
+  }
   deriving (Show)
 
-data ResultElement
-  = ResultElement
-      { updateIDResultElement :: Int,
-        messageResultElement :: Maybe Message,
-        pollResultElement :: Maybe Poll
-      }
+data ResultElement = ResultElement
+  { updateIDResultElement :: Int,
+    messageResultElement :: Maybe Message,
+    pollResultElement :: Maybe Poll
+  }
   deriving (Show)
 
-data Message
-  = Message
-      { fromMessage :: From,
-        chatMessage :: Chat,
-        messageTextMessage :: Maybe Text,
-        photoMessage :: Maybe (Vector Photo)
-      }
+data Message = Message
+  { fromMessage :: From,
+    chatMessage :: Chat,
+    messageTextMessage :: Maybe Text,
+    photoMessage :: Maybe (Vector Photo)
+  }
   deriving (Show)
 
-data Chat
-  = Chat
-      { chatIDChat :: Int
-      }
+data Chat = Chat
+  { chatIDChat :: Int
+  }
   deriving (Show)
 
-data From
-  = From
-      { fromIDFrom :: Int
-      }
+data From = From
+  { fromIDFrom :: Int
+  }
   deriving (Show)
 
-data Photo
-  = Photo
-      { fileIDPhoto :: Text
-      }
+data Photo = Photo
+  { fileIDPhoto :: Text
+  }
   deriving (Show)
 
-data Poll
-  = Poll
-      { pollIDPoll :: Text,
-        optionsPoll :: Vector Option,
-        totalVoterCountPoll :: Int
-      }
+data Poll = Poll
+  { pollIDPoll :: Text,
+    optionsPoll :: Vector Option,
+    totalVoterCountPoll :: Int
+  }
   deriving (Show)
 
-data Option
-  = Option
-      { optionTextOption :: Text,
-        voterCountOption :: Int
-      }
+data Option = Option
+  { optionTextOption :: Text,
+    voterCountOption :: Int
+  }
   deriving (Show)
 
 decodeTopLevel :: ByteString -> Maybe WelcomeUpdate
@@ -78,8 +70,10 @@ instance ToJSON WelcomeUpdate where
 instance FromJSON WelcomeUpdate where
   parseJSON (Object v) =
     WelcomeUpdate
-      <$> v .: "ok"
-      <*> v .: "result"
+      <$> v
+      .: "ok"
+      <*> v
+      .: "result"
   parseJSON _ = error "parser"
 
 instance ToJSON ResultElement where
@@ -93,9 +87,12 @@ instance ToJSON ResultElement where
 instance FromJSON ResultElement where
   parseJSON (Object v) =
     ResultElement
-      <$> v .: "update_id"
-      <*> v .:? "message"
-      <*> v .:? "poll"
+      <$> v
+      .: "update_id"
+      <*> v
+      .:? "message"
+      <*> v
+      .:? "poll"
   parseJSON _ = error "parser"
 
 instance ToJSON Message where
@@ -110,10 +107,14 @@ instance ToJSON Message where
 instance FromJSON Message where
   parseJSON (Object v) =
     Message
-      <$> v .: "from"
-      <*> v .: "chat"
-      <*> v .:? "text"
-      <*> v .:? "photo"
+      <$> v
+      .: "from"
+      <*> v
+      .: "chat"
+      <*> v
+      .:? "text"
+      <*> v
+      .:? "photo"
   parseJSON _ = error "parser"
 
 instance ToJSON Chat where
@@ -125,7 +126,8 @@ instance ToJSON Chat where
 instance FromJSON Chat where
   parseJSON (Object v) =
     Chat
-      <$> v .: "id"
+      <$> v
+      .: "id"
   parseJSON _ = error "parser"
 
 instance ToJSON From where
@@ -137,7 +139,8 @@ instance ToJSON From where
 instance FromJSON From where
   parseJSON (Object v) =
     From
-      <$> v .: "id"
+      <$> v
+      .: "id"
   parseJSON _ = error "parser"
 
 instance ToJSON Photo where
@@ -149,7 +152,8 @@ instance ToJSON Photo where
 instance FromJSON Photo where
   parseJSON (Object v) =
     Photo
-      <$> v .: "file_id"
+      <$> v
+      .: "file_id"
   parseJSON _ = error "parser"
 
 instance ToJSON Poll where
@@ -163,9 +167,12 @@ instance ToJSON Poll where
 instance FromJSON Poll where
   parseJSON (Object v) =
     Poll
-      <$> v .: "id"
-      <*> v .: "options"
-      <*> v .: "total_voter_count"
+      <$> v
+      .: "id"
+      <*> v
+      .: "options"
+      <*> v
+      .: "total_voter_count"
   parseJSON _ = error "parser"
 
 instance ToJSON Option where
@@ -178,6 +185,8 @@ instance ToJSON Option where
 instance FromJSON Option where
   parseJSON (Object v) =
     Option
-      <$> v .: "text"
-      <*> v .: "voter_count"
+      <$> v
+      .: "text"
+      <*> v
+      .: "voter_count"
   parseJSON _ = error "parser"

@@ -21,11 +21,10 @@ import GHC.Generics
 import qualified Logger
 import qualified System.IO as SIO
 
-data PreConfig
-  = PreConfig
-      { preconfFilePath :: String,
-        preconfMinLevel :: Logger.Level
-      }
+data PreConfig = PreConfig
+  { preconfFilePath :: String,
+    preconfMinLevel :: Logger.Level
+  }
   deriving (Generic, FromJSON, ToJSON)
 
 withPreConf :: PreConfig -> (Logger.Handle IO -> IO a) -> IO a
@@ -44,17 +43,16 @@ withPreConf' pc g = do
   SIO.hClose h
   return a
 
-data Config
-  = Config
-      { -- | A file handle to output formatted log messages to with
-        -- 'System.IO.hPutStrLn' or 'Data.Text.IO.hPutStrLn'. For example,
-        -- it might be 'System.IO.stderr' or a handle of a regular open
-        -- file.
-        confFileHandle :: SIO.Handle,
-        -- | The minimum level of a printable log message. Messages with
-        -- lower levels should not be printed.
-        confMinLevel :: Logger.Level
-      }
+data Config = Config
+  { -- | A file handle to output formatted log messages to with
+    -- 'System.IO.hPutStrLn' or 'Data.Text.IO.hPutStrLn'. For example,
+    -- it might be 'System.IO.stderr' or a handle of a regular open
+    -- file.
+    confFileHandle :: SIO.Handle,
+    -- | The minimum level of a printable log message. Messages with
+    -- lower levels should not be printed.
+    confMinLevel :: Logger.Level
+  }
 
 liftHandleBaseIO ::
   MonadBase IO m =>
