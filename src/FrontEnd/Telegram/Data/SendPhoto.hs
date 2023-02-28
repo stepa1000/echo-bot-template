@@ -6,7 +6,7 @@ module FrontEnd.Telegram.Data.SendPhoto where
 import Data.Aeson
 import Data.ByteString.Lazy
 
-data ResponsePhoto = ResponsePhoto
+newtype ResponsePhoto = ResponsePhoto
   { okResponsePhoto :: Bool
   }
   deriving (Show)

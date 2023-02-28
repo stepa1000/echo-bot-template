@@ -29,17 +29,17 @@ data Message = Message
   }
   deriving (Show)
 
-data ChatMessage = Chat
+newtype ChatMessage = Chat
   { chatIDChat :: Int
   }
   deriving (Show)
 
-data FromMessage = From
+newtype FromMessage = From
   { fromIDFrom :: Int
   }
   deriving (Show)
 
-data Photo = Photo
+newtype Photo = Photo
   { fileIDPhoto :: Text
   }
   deriving (Show)
