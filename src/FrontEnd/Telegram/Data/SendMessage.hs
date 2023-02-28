@@ -6,10 +6,9 @@ module FrontEnd.Telegram.Data.SendMessage where
 import Data.Aeson
 import Data.ByteString.Lazy
 
-data ResponseSendMessage
-  = ResponseSendMessage
-      { okResponseSendMesssage :: Bool
-      }
+data ResponseSendMessage = ResponseSendMessage
+  { okResponseSendMesssage :: Bool
+  }
   deriving (Show)
 
 decodeTopLevel :: ByteString -> Maybe ResponseSendMessage
@@ -24,5 +23,6 @@ instance ToJSON ResponseSendMessage where
 instance FromJSON ResponseSendMessage where
   parseJSON (Object v) =
     ResponseSendMessage
-      <$> v .: "ok"
+      <$> v
+      .: "ok"
   parseJSON _ = error "parser"

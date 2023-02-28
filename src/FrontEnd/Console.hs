@@ -15,10 +15,9 @@ import qualified Data.Text.IO as TIO
 import qualified Data.Text.Read as T
 import qualified EchoBot
 
-newtype Handle
-  = Handle
-      { hBotHandle :: EchoBot.Handle IO T.Text
-      }
+newtype Handle = Handle
+  { hBotHandle :: EchoBot.Handle IO T.Text
+  }
 
 run :: Handle -> IO ()
 run h = do

@@ -38,44 +38,42 @@ import qualified Logger
 -- restrictions on the message type, hence the bot can support all
 -- possible message types, while 'hTextFromMessage' and
 -- 'hMessageFromText' are implemented.
-data Handle m a
-  = Handle
-      { hLogHandle :: Logger.Handle m,
-        hConfig :: Config,
-        -- | Returns the current 'State'.
-        hGetState :: m State,
-        -- | Updates the current state with applying the given function.
-        -- You may find it similar to the 'modify'` method of the 'State'
-        -- monad, as well as 'hGetState' is similar to 'get'.
-        hModifyState' :: (State -> State) -> m (),
-        -- | Returns @Just text@ for a pure text message, so that the bot
-        -- could try to parse it as a command. Otherwise it returns
-        -- 'Nothing'.
-        hTextFromMessage :: a -> Maybe T.Text,
-        -- | Constructs a message from a pure text. The bot can use it for
-        -- creating a help text message.
-        --
-        -- Note that instead of adding 'hTextFromMessage' and
-        -- 'hMessageFromText' into 'Handle', we might make them into
-        -- methods of @Message@ type class. These two variants are very
-        -- similar for our goals.
-        hMessageFromText :: T.Text -> a
-      }
+data Handle m a = Handle
+  { hLogHandle :: Logger.Handle m,
+    hConfig :: Config,
+    -- | Returns the current 'State'.
+    hGetState :: m State,
+    -- | Updates the current state with applying the given function.
+    -- You may find it similar to the 'modify'` method of the 'State'
+    -- monad, as well as 'hGetState' is similar to 'get'.
+    hModifyState' :: (State -> State) -> m (),
+    -- | Returns @Just text@ for a pure text message, so that the bot
+    -- could try to parse it as a command. Otherwise it returns
+    -- 'Nothing'.
+    hTextFromMessage :: a -> Maybe T.Text,
+    -- | Constructs a message from a pure text. The bot can use it for
+    -- creating a help text message.
+    --
+    -- Note that instead of adding 'hTextFromMessage' and
+    -- 'hMessageFromText' into 'Handle', we might make them into
+    -- methods of @Message@ type class. These two variants are very
+    -- similar for our goals.
+    hMessageFromText :: T.Text -> a
+  }
 
 -- | The initial configuration of the bot.
-data Config
-  = Config
-      { -- | A reply to the @help@ command
-        confHelpReply :: Text,
-        -- | A reply to the @repeat@ command. The string of @{count}@ in
-        -- the text will be replaced with the current repetition count, so
-        -- that you can use a template string like @"The new repetition
-        -- count is {count}."@.
-        confRepeatReply :: Text,
-        -- | The initial repetition count for echoing messages to start
-        -- with.
-        confRepetitionCount :: Int
-      }
+data Config = Config
+  { -- | A reply to the @help@ command
+    confHelpReply :: Text,
+    -- | A reply to the @repeat@ command. The string of @{count}@ in
+    -- the text will be replaced with the current repetition count, so
+    -- that you can use a template string like @"The new repetition
+    -- count is {count}."@.
+    confRepeatReply :: Text,
+    -- | The initial repetition count for echoing messages to start
+    -- with.
+    confRepetitionCount :: Int
+  }
   deriving (Show, Generic, ToJSON, FromJSON)
 
 -- | An external event that the bot should process and respond to.
@@ -113,11 +111,10 @@ type RepetitionCount = Int
 -- keep the number of repetitions for a single user. Let the caller
 -- code be responsible for tracking multiple users and states for
 -- their bots.
-newtype State
-  = State
-      { stRepetitionCount :: RepetitionCount
-        -- , stRepetitionMessageText :: Maybe T.Text
-      }
+newtype State = State
+  { stRepetitionCount :: RepetitionCount
+  -- , stRepetitionMessageText :: Maybe T.Text
+  }
   deriving (Show)
 
 -- | Creates an initial, default bot state for a user.

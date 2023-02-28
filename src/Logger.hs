@@ -22,10 +22,9 @@ import GHC.Generics
 
 -- | The logger handle. This is a public logger interface that can
 -- have different implementations. You can use it everywhere.
-newtype Handle m
-  = Handle
-      { hLowLevelLog :: Level -> T.Text -> m ()
-      }
+newtype Handle m = Handle
+  { hLowLevelLog :: Level -> T.Text -> m ()
+  }
 
 data Level
   = Debug
