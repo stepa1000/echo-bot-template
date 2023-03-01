@@ -5,27 +5,22 @@ module Main
   )
 where
 
-import Prelude as P
-
-import Servant.Client
-
-import qualified Data.Map as M
-
-import Control.Monad.Base
-
 import qualified ConfigBot
 import qualified ConfigurationTypes
+import Control.Monad.Base
+import Data.Aeson as Aeson
 import Data.IORef (modifyIORef', newIORef, readIORef)
+import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified EchoBot
 import qualified FrontEnd.Console
 import qualified FrontEnd.Telegram.Telegram as Telegram
 import qualified Logger
 import qualified Logger.Impl
+import Servant.Client
 import System.Exit (die)
-
-import Data.Aeson as Aeson
 import Text.Show.Pretty
+import Prelude as P
 
 main :: IO ()
 main = do
@@ -34,8 +29,9 @@ main = do
     (Right gconf) -> Logger.Impl.withPreConf (ConfigBot.confLogger gconf) $ \logHandle -> do
       case ConfigBot.confConfigurationTypes gconf of
         ConfigurationTypes.TelegramFrontEnd -> do
-          telegramHandle <- makeBotHandleForTelegram (ConfigBot.confTelegram gconf) (ConfigBot.confEchoBot gconf) $
-            Logger.Impl.liftHandleBaseIO logHandle 
+          telegramHandle <-
+            makeBotHandleForTelegram (ConfigBot.confTelegram gconf) (ConfigBot.confEchoBot gconf) $
+              Logger.Impl.liftHandleBaseIO logHandle
           execClientM (ConfigBot.confTelegram gconf) $ Telegram.run telegramHandle
         ConfigurationTypes.ConsoleFrontEnd -> do
           botHandle <- makeBotHandleForPlainText (ConfigBot.confEchoBot gconf) logHandle
@@ -54,46 +50,57 @@ execClientM telegramConfig m = do
   a <- runClientM m e
   case a of
     (Right b) -> return b
-    (Left (DecodeFailure t b )) -> do
+    (Left (DecodeFailure t b)) -> do
       let js = decode @Aeson.Value $ responseBody b
       encodeFile "./logs/responseBody.json" js
-      error $ (show t) P.++ "\n" P.++
-              (ppShow b) P.++ "\n" P.++ 
-              (ppShow $ js)
+      error $
+        show t
+          P.++ "\n"
+          P.++ ppShow b
+          P.++ "\n"
+          P.++ ppShow js
     (Left (FailureResponse req res)) -> do
       let js = decode @Aeson.Value $ responseBody res
       encodeFile "./logs/responseBody.json" js
-      error $ (show req) P.++ "\n" P.++
-              (ppShow res) P.++ "\n" P.++ 
-              (ppShow $ js)
+      error $
+        show req
+          P.++ "\n"
+          P.++ ppShow res
+          P.++ "\n"
+          P.++ ppShow js
     (Left b) -> error (ppShow b)
 
-makeBotHandleForTelegram :: Telegram.Config
-                         -> EchoBot.Config
-                         -> Logger.Handle ClientM 
-                         -> IO (Telegram.Handle ClientM)
+makeBotHandleForTelegram ::
+  Telegram.Config ->
+  EchoBot.Config ->
+  Logger.Handle ClientM ->
+  IO (Telegram.Handle ClientM)
 makeBotHandleForTelegram telegramConfig botConfig logHandle = do
   initialState <- either (die . T.unpack) pure $ EchoBot.makeState botConfig
-  refAcc <- newIORef $ Telegram.Accounting
-    { Telegram.currentAccountId = Telegram.AccountId 
-      { Telegram.accountUserId  = 0 
-      , Telegram.accountIdChatId = 0 
-      }
-    , Telegram.currentState = initialState
-    , Telegram.currentPollID = Nothing
-    , Telegram.mapState = M.empty
-    }  
-  Telegram.initHandleClientM 
-    telegramConfig 
-    (EchoBot.Handle
-      { EchoBot.hGetState = liftBase $ fmap Telegram.currentState $ readIORef refAcc
-      , EchoBot.hModifyState' = \ f -> liftBase $ 
-          modifyIORef' refAcc (\s->s {Telegram.currentState = f $ Telegram.currentState s})
-      , EchoBot.hLogHandle = logHandle
-      , EchoBot.hConfig = botConfig
-      , EchoBot.hTextFromMessage = Telegram.accountMessageToText
-      , EchoBot.hMessageFromText = Telegram.textToAccountMessage
-      }
+  refAcc <-
+    newIORef $
+      Telegram.Accounting
+        { Telegram.currentAccountId =
+            Telegram.AccountId
+              { Telegram.accountUserId = 0,
+                Telegram.accountIdChatId = 0
+              },
+          Telegram.currentState = initialState,
+          Telegram.currentPollID = Nothing,
+          Telegram.mapState = M.empty
+        }
+  Telegram.initHandleClientM
+    telegramConfig
+    ( EchoBot.Handle
+        { EchoBot.hGetState = liftBase (Telegram.currentState <$> readIORef refAcc),
+          EchoBot.hModifyState' = \f ->
+            liftBase $
+              modifyIORef' refAcc (\s -> s {Telegram.currentState = f $ Telegram.currentState s}),
+          EchoBot.hLogHandle = logHandle,
+          EchoBot.hConfig = botConfig,
+          EchoBot.hTextFromMessage = Telegram.accountMessageToText,
+          EchoBot.hMessageFromText = Telegram.textToAccountMessage
+        }
     )
     refAcc
 
