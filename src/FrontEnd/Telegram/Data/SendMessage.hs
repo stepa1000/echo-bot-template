@@ -6,7 +6,7 @@ module FrontEnd.Telegram.Data.SendMessage where
 import Data.Aeson
 import Data.ByteString.Lazy
 
-data ResponseSendMessage = ResponseSendMessage
+newtype ResponseSendMessage = ResponseSendMessage
   { okResponseSendMesssage :: Bool
   }
   deriving (Show)

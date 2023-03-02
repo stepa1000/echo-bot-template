@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -112,7 +113,8 @@ data AccountPoll = AccountPoll
 newtype Config = Config
   { confBotToken :: T.Text
   }
-  deriving (Show, Generic, ToJSON, FromJSON)
+  deriving (Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- | initiates a bot handle for ClientM
 initHandleClientM ::

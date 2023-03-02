@@ -13,12 +13,12 @@ data ResponsePoll = ResponsePoll
   }
   deriving (Show)
 
-data ResultClass = ResultClass
+newtype ResultClass = ResultClass
   { pollResultClass :: Poll
   }
   deriving (Show)
 
-data Poll = Poll
+newtype Poll = Poll
   { pollIDPoll :: Text
   }
   deriving (Show)
