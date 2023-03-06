@@ -2,6 +2,10 @@
 
 run lint for initialized workflow.
 
+for the bot to work, you must specify the token in the config, which is located in the folder of the same name.
+
+you can configure which frontend will be used: console or telegram.
+
 # structure
 
 the project structure is divided into interface, implementation, configuration.
