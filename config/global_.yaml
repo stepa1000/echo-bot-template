@@ -13,4 +13,4 @@ confLogger:
 # log level
   preconfMinLevel: Debug
 confTelegram:
-  confBotToken: "5950752982:AAGeBYoh-3QNDqFRsPoC608YBl3j5dVtHfk"
+  confBotToken: ""
