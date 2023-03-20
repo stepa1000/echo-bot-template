@@ -4,4 +4,6 @@
 /logs
 .vscode
 .history
+.README.md.swo
+.README.md.swp
 /echo-bot.cabal
